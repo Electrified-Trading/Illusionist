@@ -33,7 +33,7 @@ public sealed class GenerateCommand : Command<GenerateCommand.Settings>
 	{
 		AnsiConsole.MarkupLine($"[green]Generating bars for symbol:[/] [yellow]{settings.Symbol}[/]");
 		AnsiConsole.MarkupLine($"[green]Seed:[/] [yellow]{settings.Seed}[/]");
-		AnsiConsole.MarkupLine($"[green]Interval:[/] [yellow]{settings.Interval}[/]");		AnsiConsole.WriteLine();
+		AnsiConsole.MarkupLine($"[green]Interval:[/] [yellow]{settings.Interval}[/]"); AnsiConsole.WriteLine();
 		var interval = ParseInterval(settings.Interval);
 
 		// Test GBM values

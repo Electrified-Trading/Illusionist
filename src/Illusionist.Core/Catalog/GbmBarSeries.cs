@@ -13,39 +13,39 @@ namespace Illusionist.Core.Catalog;
 /// <param name="drift">The drift parameter for GBM (default: 0.0001)</param>
 /// <param name="volatility">The volatility parameter for GBM (default: 0.01)</param>
 public sealed partial class GbmBarSeries(
-    string symbol, 
-    int seed, 
-    TimeSpan interval, 
-    double drift = 0.0001, 
-    double volatility = 0.01) : IBarSeries
+	string symbol,
+	int seed,
+	TimeSpan interval,
+	double drift = 0.0001,
+	double volatility = 0.01) : IBarSeries
 {
-    private readonly Generator _generator = new(symbol, seed, interval, drift, volatility);
+	private readonly Generator _generator = new(seed + symbol.GetHashCode(), interval, drift, volatility);
 
-    /// <summary>
-    /// Gets the bar that contains or immediately precedes the specified timestamp.
-    /// Uses Geometric Brownian Motion to generate realistic price evolution.
-    /// </summary>
-    /// <param name="timestamp">The timestamp to query</param>
-    /// <returns>The bar for the specified timestamp</returns>
-    public Bar GetBarAt(DateTime timestamp)
-    {
-        return _generator.GetBarAt(timestamp);
-    }
+	/// <summary>
+	/// Gets the bar that contains or immediately precedes the specified timestamp.
+	/// Uses Geometric Brownian Motion to generate realistic price evolution.
+	/// </summary>
+	/// <param name="timestamp">The timestamp to query</param>
+	/// <returns>The bar for the specified timestamp</returns>
+	public Bar GetBarAt(DateTime timestamp)
+	{
+		return _generator.GetBarAt(timestamp);
+	}
 
-    /// <summary>
-    /// Gets an enumerable sequence of bars starting from the specified timestamp.
-    /// Each bar follows GBM price evolution from the previous bar.
-    /// </summary>
-    /// <param name="start">The starting timestamp</param>
-    /// <returns>An enumerable sequence of bars</returns>
-    public IEnumerable<Bar> GetBars(DateTime start)
-    {
-        var current = start;
+	/// <summary>
+	/// Gets an enumerable sequence of bars starting from the specified timestamp.
+	/// Each bar follows GBM price evolution from the previous bar.
+	/// </summary>
+	/// <param name="start">The starting timestamp</param>
+	/// <returns>An enumerable sequence of bars</returns>
+	public IEnumerable<Bar> GetBars(DateTime start)
+	{
+		var current = start;
 
-        while (true)
-        {
-            yield return _generator.GetBarAt(current);
-            current = current.Add(_generator.Interval);
-        }
-    }
+		while (true)
+		{
+			yield return _generator.GetBarAt(current);
+			current = current.Add(_generator.Interval);
+		}
+	}
 }
