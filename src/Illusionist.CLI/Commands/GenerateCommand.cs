@@ -47,16 +47,16 @@ public sealed class GenerateCommand : Command<GenerateCommand.Settings>
 	{
 		AnsiConsole.MarkupLine($"[green]Generating bars for symbol:[/] [yellow]{settings.Symbol}[/]");
 		AnsiConsole.MarkupLine($"[green]Seed:[/] [yellow]{settings.Seed}[/]");
-		AnsiConsole.MarkupLine($"[green]Interval:[/] [yellow]{settings.Interval}[/]");
-		AnsiConsole.MarkupLine($"[green]Factory type:[/] [yellow]{settings.FactoryType.ToUpperInvariant()}[/]");
+		AnsiConsole.MarkupLine($"[green]Interval:[/] [yellow]{settings.Interval}[/]");		AnsiConsole.MarkupLine($"[green]Factory type:[/] [yellow]{settings.FactoryType.ToUpperInvariant()}[/]");
 		AnsiConsole.WriteLine();
 
 		var interval = ParseInterval(settings.Interval);
+		var anchor = new BarAnchor(DateTime.UtcNow.Date.AddHours(9), 100.0m); // Default anchor at market open with $100 price
 
 		// Create GBM factory
 		IBarSeriesFactory factory = CreateFactory(settings);
 
-		var series = factory.GetSeries(interval);
+		var series = factory.GetSeries(interval, anchor);
 		var startTime = DateTime.UtcNow.Date.AddHours(9); // Market open time
 		var bars = series.GetBars(startTime).Take(5).ToList();
 
@@ -93,18 +93,17 @@ public sealed class GenerateCommand : Command<GenerateCommand.Settings>
 			_ => throw new ArgumentException($"Unsupported factory type: {settings.FactoryType}. Only 'gbm' is currently supported.")
 		};
 	}
-
-	private static TimeSpan ParseInterval(string interval)
+	private static BarInterval ParseInterval(string interval)
 	{
 		return interval.ToLowerInvariant() switch
 		{
-			"1m" => TimeSpan.FromMinutes(1),
-			"5m" => TimeSpan.FromMinutes(5),
-			"15m" => TimeSpan.FromMinutes(15),
-			"1h" => TimeSpan.FromHours(1),
-			"4h" => TimeSpan.FromHours(4),
-			"1d" => TimeSpan.FromDays(1),
-			_ => TimeSpan.FromMinutes(1)
+			"1m" => BarInterval.Minute(1),
+			"5m" => BarInterval.Minute(5),
+			"15m" => BarInterval.Minute(15),
+			"1h" => BarInterval.Hour(1),
+			"4h" => BarInterval.Hour(4),
+			"1d" => BarInterval.Day(1),
+			_ => BarInterval.Minute(1)
 		};
 	}
 }
