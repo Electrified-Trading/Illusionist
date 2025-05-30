@@ -48,13 +48,13 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 
 		return new GbmBarSeries.Factory(DefaultSymbol, seed, drift, volatility);
 	}
-
 	[Fact]
 	public void GetBarAt_DifferentDriftParameters_ProducesDifferentResults()
 	{
 		// Arrange
 		const int seed = 12345;
-		var interval = TimeSpan.FromMinutes(1);
+		var interval = CreateDefaultInterval();
+		var anchor = CreateDefaultAnchor();
 		var timestamp = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
 
 		var params1 = new Dictionary<string, double> { ["drift"] = 0.0001 };
@@ -62,8 +62,8 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 
 		var factory1 = CreateFactoryWithParameters(seed, params1);
 		var factory2 = CreateFactoryWithParameters(seed, params2);
-		var series1 = factory1.GetSeries(interval);
-		var series2 = factory2.GetSeries(interval);
+		var series1 = factory1.GetSeries(interval, anchor);
+		var series2 = factory2.GetSeries(interval, anchor);
 
 		// Act
 		var bar1 = series1.GetBarAt(timestamp);
@@ -74,13 +74,13 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 		Assert.Equal(timestamp, bar1.Timestamp);
 		Assert.Equal(timestamp, bar2.Timestamp);
 	}
-
 	[Fact]
 	public void GetBarAt_DifferentVolatilityParameters_ProducesDifferentResults()
 	{
 		// Arrange
 		const int seed = 12345;
-		var interval = TimeSpan.FromMinutes(1);
+		var interval = CreateDefaultInterval();
+		var anchor = CreateDefaultAnchor();
 		var timestamp = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
 
 		var params1 = new Dictionary<string, double> { ["volatility"] = 0.01 };
@@ -88,8 +88,8 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 
 		var factory1 = CreateFactoryWithParameters(seed, params1);
 		var factory2 = CreateFactoryWithParameters(seed, params2);
-		var series1 = factory1.GetSeries(interval);
-		var series2 = factory2.GetSeries(interval);
+		var series1 = factory1.GetSeries(interval, anchor);
+		var series2 = factory2.GetSeries(interval, anchor);
 
 		// Act
 		var bar1 = series1.GetBarAt(timestamp);
@@ -100,17 +100,17 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 		Assert.Equal(timestamp, bar1.Timestamp);
 		Assert.Equal(timestamp, bar2.Timestamp);
 	}
-
 	[Fact]
 	public void GetBarAt_ValidOhlcRelationships_HighIsHighestLowIsLowest()
 	{
 		// Arrange
 		const int seed = 12345;
-		var interval = TimeSpan.FromMinutes(5);
+		var interval = CreateInterval(5);
+		var anchor = CreateDefaultAnchor();
 		var timestamp = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
 
 		var factory = CreateFactory(seed);
-		var series = factory.GetSeries(interval);
+		var series = factory.GetSeries(interval, anchor);
 
 		// Act
 		var bar = series.GetBarAt(timestamp);
@@ -122,15 +122,15 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 		Assert.True(bar.Low <= bar.Close, "Low should be <= Close");
 		Assert.True(bar.High >= bar.Low, "High should be >= Low");
 	}
-
 	[Fact]
 	public void GetBarAt_PositiveVolume_VolumeIsAlwaysPositive()
 	{
 		// Arrange
 		const int seed = 12345;
-		var interval = TimeSpan.FromMinutes(1);
+		var interval = CreateDefaultInterval();
+		var anchor = CreateDefaultAnchor();
 		var factory = CreateFactory(seed);
-		var series = factory.GetSeries(interval);
+		var series = factory.GetSeries(interval, anchor);
 
 		// Act & Assert
 		for (int i = 0; i < 100; i++)
@@ -141,17 +141,17 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 			Assert.True(bar.Volume > 0, $"Volume should be positive for timestamp {timestamp}");
 		}
 	}
-
 	[Fact]
 	public void GetBarAt_ReasonablePriceRange_PricesWithinExpectedBounds()
 	{
 		// Arrange
 		const int seed = 12345;
-		var interval = TimeSpan.FromMinutes(1);
+		var interval = CreateDefaultInterval();
+		var anchor = CreateDefaultAnchor();
 		var timestamp = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
 
 		var factory = CreateFactory(seed);
-		var series = factory.GetSeries(interval);
+		var series = factory.GetSeries(interval, anchor);
 
 		// Act
 		var bar = series.GetBarAt(timestamp);
@@ -168,17 +168,17 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 		Assert.True(bar.Low is > 0.01m and < 1000m, "Low price should be in reasonable range");
 		Assert.True(bar.Close is > 0.01m and < 1000m, "Close price should be in reasonable range");
 	}
-
 	[Fact]
 	public void GetBarAt_CrossRunDeterminism_ReturnsExpectedValues()
 	{
 		// Arrange
 		const int seed = 12345;
-		var interval = TimeSpan.FromMinutes(1);
+		var interval = CreateDefaultInterval();
+		var anchor = CreateDefaultAnchor();
 		var timestamp = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
 
 		var factory = CreateFactory(seed);
-		var series = factory.GetSeries(interval);
+		var series = factory.GetSeries(interval, anchor);
 
 		// Act
 		var bar = series.GetBarAt(timestamp);

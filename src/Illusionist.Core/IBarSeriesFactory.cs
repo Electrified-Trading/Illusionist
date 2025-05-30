@@ -7,9 +7,10 @@ namespace Illusionist.Core;
 public interface IBarSeriesFactory
 {
 	/// <summary>
-	/// Creates a bar series with the specified time interval.
+	/// Creates a bar series with the specified bar interval and anchor point.
 	/// </summary>
-	/// <param name="interval">The time interval between bars (e.g., 1 minute, 5 minutes, 1 hour)</param>
+	/// <param name="interval">The bar interval configuration (unit and length)</param>
+	/// <param name="anchor">The anchor point for bar alignment and pricing reference</param>
 	/// <returns>A deterministic bar series instance</returns>
-	IBarSeries GetSeries(TimeSpan interval);
+	IBarSeries GetSeries(BarInterval interval, BarAnchor anchor);
 }

@@ -14,15 +14,14 @@ public readonly partial record struct BarInterval
 
 	public TimeSpan Interval
 		=> TimeSpan.FromMilliseconds(Length * (uint)Unit);
-
 	public static BarInterval Second(ushort length = 1)
-	=> new(IntervalUnit.Minute, length);
+		=> new(IntervalUnit.Second, length);
 
 	public static BarInterval Minute(ushort length = 1)
 		=> new(IntervalUnit.Minute, length);
 
 	public static BarInterval Hour(ushort length = 1)
-		=> new(IntervalUnit.Minute, length);
+		=> new(IntervalUnit.Hour, length);
 
 	public static BarInterval Day(ushort length = 1)
 		=> new(IntervalUnit.Day, length);
