@@ -6,61 +6,62 @@ namespace Illusionist.Tests.Models;
 /// Tests for GbmBarSeries implementations to ensure deterministic behavior
 /// and correct Geometric Brownian Motion characteristics.
 /// </summary>
-public class GbmBarSeriesTests
+public class GbmBarSeriesTests : BarSeriesTestBase
 {
-	[Fact]
-	public void GetBarAt_SameSeedAndTimestamp_ReturnsIdenticalBars()
+	private const string DefaultSymbol = "AAPL";
+
+	/// <summary>
+	/// Creates a GbmBarSeries.Factory with the specified seed.
+	/// </summary>
+	/// <param name="seed">The random seed for deterministic generation</param>
+	/// <returns>A GbmBarSeries factory instance</returns>
+	protected override IBarSeriesFactory CreateFactory(int seed)
 	{
-		// Arrange
-		const string symbol = "AAPL";
-		const int seed = 12345;
-		var interval = TimeSpan.FromMinutes(1);
-		var timestamp = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
-		var factory1 = new GbmBarSeries.Factory(symbol, seed);
-		var factory2 = new GbmBarSeries.Factory(symbol, seed);
-		var series1 = factory1.GetSeries(interval);
-		var series2 = factory2.GetSeries(interval);
-
-		// Act
-		var bar1 = series1.GetBarAt(timestamp);
-		var bar2 = series2.GetBarAt(timestamp);
-
-		// Assert
-		Assert.Equal(bar1, bar2);
+		return new GbmBarSeries.Factory(DefaultSymbol, seed);
 	}
 
-	[Fact]
-	public void GetBarAt_DifferentSeeds_ReturnsDifferentBars()
+	/// <summary>
+	/// Creates a GbmBarSeries.Factory with the specified seed and parameters.
+	/// </summary>
+	/// <param name="seed">The random seed for deterministic generation</param>
+	/// <param name="parameters">Dictionary containing 'drift' or 'volatility' values</param>
+	/// <returns>A GbmBarSeries factory instance with custom parameters</returns>
+	protected override IBarSeriesFactory CreateFactoryWithParameters(int seed, object parameters)
 	{
-		// Arrange
-		const string symbol = "AAPL";
-		const int seed1 = 12345;
-		const int seed2 = 54321;
-		var interval = TimeSpan.FromMinutes(1);
-		var timestamp = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
-		var factory1 = new GbmBarSeries.Factory(symbol, seed1);
-		var factory2 = new GbmBarSeries.Factory(symbol, seed2);
-		var series1 = factory1.GetSeries(interval);
-		var series2 = factory2.GetSeries(interval);
+		if (parameters is not Dictionary<string, double> customParams)
+		{
+			return CreateFactory(seed);
+		}
 
-		// Act
-		var bar1 = series1.GetBarAt(timestamp);
-		var bar2 = series2.GetBarAt(timestamp);
+		double drift = 0.0001;
+		double volatility = 0.01;
 
-		// Assert
-		Assert.NotEqual(bar1, bar2);
+		if (customParams.TryGetValue("drift", out var driftValue))
+		{
+			drift = driftValue;
+		}
+
+		if (customParams.TryGetValue("volatility", out var volValue))
+		{
+			volatility = volValue;
+		}
+
+		return new GbmBarSeries.Factory(DefaultSymbol, seed, drift, volatility);
 	}
 
 	[Fact]
 	public void GetBarAt_DifferentDriftParameters_ProducesDifferentResults()
 	{
 		// Arrange
-		const string symbol = "AAPL";
 		const int seed = 12345;
 		var interval = TimeSpan.FromMinutes(1);
 		var timestamp = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
-		var factory1 = new GbmBarSeries.Factory(symbol, seed, drift: 0.0001);
-		var factory2 = new GbmBarSeries.Factory(symbol, seed, drift: 0.0005);
+
+		var params1 = new Dictionary<string, double> { ["drift"] = 0.0001 };
+		var params2 = new Dictionary<string, double> { ["drift"] = 0.0005 };
+
+		var factory1 = CreateFactoryWithParameters(seed, params1);
+		var factory2 = CreateFactoryWithParameters(seed, params2);
 		var series1 = factory1.GetSeries(interval);
 		var series2 = factory2.GetSeries(interval);
 
@@ -78,12 +79,15 @@ public class GbmBarSeriesTests
 	public void GetBarAt_DifferentVolatilityParameters_ProducesDifferentResults()
 	{
 		// Arrange
-		const string symbol = "AAPL";
 		const int seed = 12345;
 		var interval = TimeSpan.FromMinutes(1);
 		var timestamp = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
-		var factory1 = new GbmBarSeries.Factory(symbol, seed, volatility: 0.01);
-		var factory2 = new GbmBarSeries.Factory(symbol, seed, volatility: 0.05);
+
+		var params1 = new Dictionary<string, double> { ["volatility"] = 0.01 };
+		var params2 = new Dictionary<string, double> { ["volatility"] = 0.05 };
+
+		var factory1 = CreateFactoryWithParameters(seed, params1);
+		var factory2 = CreateFactoryWithParameters(seed, params2);
 		var series1 = factory1.GetSeries(interval);
 		var series2 = factory2.GetSeries(interval);
 
@@ -101,11 +105,11 @@ public class GbmBarSeriesTests
 	public void GetBarAt_ValidOhlcRelationships_HighIsHighestLowIsLowest()
 	{
 		// Arrange
-		const string symbol = "AAPL"; const int seed = 12345;
+		const int seed = 12345;
 		var interval = TimeSpan.FromMinutes(5);
 		var timestamp = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
 
-		var factory = new GbmBarSeries.Factory(symbol, seed);
+		var factory = CreateFactory(seed);
 		var series = factory.GetSeries(interval);
 
 		// Act
@@ -121,11 +125,11 @@ public class GbmBarSeriesTests
 
 	[Fact]
 	public void GetBarAt_PositiveVolume_VolumeIsAlwaysPositive()
-	{        // Arrange
-		const string symbol = "AAPL";
+	{
+		// Arrange
 		const int seed = 12345;
 		var interval = TimeSpan.FromMinutes(1);
-		var factory = new GbmBarSeries.Factory(symbol, seed);
+		var factory = CreateFactory(seed);
 		var series = factory.GetSeries(interval);
 
 		// Act & Assert
@@ -137,16 +141,16 @@ public class GbmBarSeriesTests
 			Assert.True(bar.Volume > 0, $"Volume should be positive for timestamp {timestamp}");
 		}
 	}
+
 	[Fact]
 	public void GetBarAt_ReasonablePriceRange_PricesWithinExpectedBounds()
 	{
 		// Arrange
-		const string symbol = "AAPL";
 		const int seed = 12345;
 		var interval = TimeSpan.FromMinutes(1);
 		var timestamp = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
 
-		var factory = new GbmBarSeries.Factory(symbol, seed);
+		var factory = CreateFactory(seed);
 		var series = factory.GetSeries(interval);
 
 		// Act
@@ -166,44 +170,14 @@ public class GbmBarSeriesTests
 	}
 
 	[Fact]
-	public void GetBars_ConsistentWithGetBarAt_SameResults()
-	{        // Arrange
-		const string symbol = "AAPL";
-		const int seed = 12345;
-		var interval = TimeSpan.FromMinutes(1);
-		var startTime = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
-
-		var factory = new GbmBarSeries.Factory(symbol, seed);
-		var series = factory.GetSeries(interval);
-
-		// Act
-		var barsFromSeries = series.GetBars(startTime).Take(5).ToList();
-		var barsFromGetBarAt = new List<Bar>();
-		for (int i = 0; i < 5; i++)
-		{
-			var timestamp = startTime.AddMinutes(i);
-			barsFromGetBarAt.Add(series.GetBarAt(timestamp));
-		}
-
-		// Assert
-		Assert.Equal(5, barsFromSeries.Count);
-		Assert.Equal(5, barsFromGetBarAt.Count);
-
-		for (int i = 0; i < 5; i++)
-		{
-			Assert.Equal(barsFromSeries[i], barsFromGetBarAt[i]);
-		}
-	}
-
-	[Fact]
 	public void GetBarAt_CrossRunDeterminism_ReturnsExpectedValues()
-	{        // Arrange
-		const string symbol = "AAPL";
+	{
+		// Arrange
 		const int seed = 12345;
 		var interval = TimeSpan.FromMinutes(1);
 		var timestamp = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
 
-		var factory = new GbmBarSeries.Factory(symbol, seed);
+		var factory = CreateFactory(seed);
 		var series = factory.GetSeries(interval);
 
 		// Act
@@ -213,41 +187,6 @@ public class GbmBarSeriesTests
 		Assert.True(bar.Open is > 0.5m and < 2.0m, "Open should be in expected GBM range");
 		Assert.True(bar.Volume >= 1000m, "Volume should be at least 1000");
 		Assert.Equal(timestamp, bar.Timestamp);
-	}
-
-	[Theory]
-	[InlineData(1)]
-	[InlineData(5)]
-	[InlineData(15)]
-	[InlineData(60)]
-	public void GetSeries_DifferentIntervals_AllWork(int intervalMinutes)
-	{
-		// Arrange
-		const string symbol = "AAPL";
-		const int seed = 12345;
-		var interval = TimeSpan.FromMinutes(intervalMinutes);
-		var timestamp = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
-
-		var factory = new GbmBarSeries.Factory(symbol, seed);
-		var series = factory.GetSeries(interval);
-
-		// Act
-		var bar = series.GetBarAt(timestamp);
-		var bars = series.GetBars(timestamp).Take(5).ToList();
-
-		// Assert
-		Assert.Equal(timestamp, bar.Timestamp);
-		Assert.Equal(5, bars.Count);
-		Assert.All(bars, b => Assert.True(b.High >= b.Low));
-		Assert.All(bars, b => Assert.True(b.Volume > 0));
-
-		// Check timestamp progression
-		for (int i = 1; i < bars.Count; i++)
-		{
-			var expectedInterval = TimeSpan.FromMinutes(intervalMinutes);
-			var actualInterval = bars[i].Timestamp - bars[i - 1].Timestamp;
-			Assert.Equal(expectedInterval, actualInterval);
-		}
 	}
 
 	[Fact]

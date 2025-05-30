@@ -12,7 +12,6 @@ namespace Illusionist.Core.Catalog;
 public sealed partial class SeededBarSeries(int seed, TimeSpan interval) : IBarSeries
 {
 	private readonly Generator _generator = new(seed, interval);
-
 	/// <summary>
 	/// Gets the bar that contains or immediately precedes the specified timestamp.
 	/// </summary>
@@ -20,7 +19,9 @@ public sealed partial class SeededBarSeries(int seed, TimeSpan interval) : IBarS
 	/// <returns>The bar for the specified timestamp</returns>
 	public Bar GetBarAt(DateTime timestamp)
 	{
-		return _generator.GetBarAt(timestamp);
+		var bar = _generator.GetBarAt(timestamp);
+		// Return the bar with the original requested timestamp to match IBarSeries contract
+		return bar with { Timestamp = timestamp };
 	}
 
 	/// <summary>

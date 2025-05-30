@@ -41,11 +41,16 @@ public sealed partial class GbmBarSeries(
 	public IEnumerable<Bar> GetBars(DateTime start)
 	{
 		var current = start;
-
+		var firstBar = _generator.GetBarAt(current);
+		yield return firstBar;
+		
+		// Use the exact interval from the generator to ensure consistency
+		var barInterval = _generator.Interval;
+		
 		while (true)
 		{
+			current = current.Add(barInterval);
 			yield return _generator.GetBarAt(current);
-			current = current.Add(_generator.Interval);
 		}
 	}
 }

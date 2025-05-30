@@ -25,6 +25,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\src\Illusionist.Core\Illusionist.Core.csproj" />
+    <ProjectReference Include="..\src\Illusionist.CLI\Illusionist.CLI.csproj" />
   </ItemGroup>
 
 </Project>

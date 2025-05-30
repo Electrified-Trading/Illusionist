@@ -38,16 +38,16 @@ public sealed partial class GbmBarSeries
 		public Bar GetBarAt(DateTime timestamp)
 		{
 			// Align timestamp to interval boundary
-			var alignedTimestamp = AlignToInterval(timestamp);
-
-			// Convert to time units for mathematical operations (using hours for better scaling)
-			var hoursFromEpoch = (alignedTimestamp - Epoch).TotalHours;
-
-			// Create deterministic noise that varies with time, seed, interval, drift, and volatility
+			var alignedTimestamp = AlignToInterval(timestamp);			// Convert to time units for mathematical operations (using hours for better scaling)
+			var hoursFromEpoch = (alignedTimestamp - Epoch).TotalHours;			// Create deterministic noise that varies with time, seed, interval, drift, and volatility
 			var timeHash = CreateDeterministicHash(alignedTimestamp, seed);
 			var combinedSeed = seed ^ timeHash ^ _intervalHash ^ _paramHash;
 
-			var noise = PseudoNoise(hoursFromEpoch, combinedSeed);
+			// Include interval ticks in the noise calculation to ensure different intervals produce different results
+			var intervalAdjustedTime = hoursFromEpoch + (interval.TotalHours * 123.456); // Large multiplier to make interval differences more significant
+			var intervalModifier = (int)(interval.TotalMinutes * 17); // Additional interval-based modifier
+			var finalSeed = combinedSeed ^ intervalModifier;
+			var noise = PseudoNoise(intervalAdjustedTime, finalSeed);
 			// GBM formula: S(t) = S(0) * exp((μ - σ²/2) * t + σ * W(t))
 			// Start with a base price of 1.0 for mathematical modeling
 			var basePriceLog = Math.Log(1.0); // 0.0
@@ -56,27 +56,23 @@ public sealed partial class GbmBarSeries
 			// Clamp logPrice to keep prices in reasonable range (0.1 to 10.0)
 			logPrice = Math.Max(Math.Log(0.1), Math.Min(Math.Log(10.0), logPrice));
 
-			var basePrice = Math.Exp(logPrice);
-
-			// Generate OHLC values around the base price with interval-dependent variation
+			var basePrice = Math.Exp(logPrice);			// Generate OHLC values around the base price with interval-dependent variation
 			var intervalMinutes = interval.TotalMinutes;
 			var variationFactor = Math.Sqrt(intervalMinutes / 60.0) * 0.005; // Scale variation with interval
 
 			var openPrice = basePrice;
-			var noise2 = PseudoNoise(hoursFromEpoch + 100, combinedSeed);
-			var noise3 = PseudoNoise(hoursFromEpoch + 200, combinedSeed);
-			var noise4 = PseudoNoise(hoursFromEpoch + 300, combinedSeed);
+			var noise2 = PseudoNoise(intervalAdjustedTime + 100, finalSeed);
+			var noise3 = PseudoNoise(intervalAdjustedTime + 200, finalSeed);
+			var noise4 = PseudoNoise(intervalAdjustedTime + 300, finalSeed);
 
 			var closePrice = openPrice * (1.0 + noise2 * variationFactor);
 			var highPrice = Math.Max(openPrice, closePrice) * (1.0 + Math.Abs(noise3) * variationFactor);
-			var lowPrice = Math.Min(openPrice, closePrice) * (1.0 - Math.Abs(noise4) * variationFactor);
-
-			// Generate volume using deterministic hash-based approach
-			var volumeHash = CreateDeterministicHash(alignedTimestamp.AddTicks(1), combinedSeed);
+			var lowPrice = Math.Min(openPrice, closePrice) * (1.0 - Math.Abs(noise4) * variationFactor);			// Generate volume using deterministic hash-based approach
+			var volumeHash = CreateDeterministicHash(alignedTimestamp.AddTicks(1), finalSeed);
 			var volume = (volumeHash % 10000) + 1000; // Volume between 1000-11000
 
 			return new Bar(
-				Timestamp: alignedTimestamp,
+				Timestamp: timestamp, // Return the original requested timestamp, not the aligned one
 				Open: (decimal)openPrice,
 				High: (decimal)highPrice,
 				Low: (decimal)lowPrice,
@@ -127,7 +123,6 @@ public sealed partial class GbmBarSeries
 
 			return Math.Abs(combined);
 		}
-
 		/// <summary>
 		/// Aligns the given timestamp to the nearest interval boundary.
 		/// </summary>
@@ -135,6 +130,24 @@ public sealed partial class GbmBarSeries
 		/// <returns>The aligned timestamp</returns>
 		private DateTime AlignToInterval(DateTime timestamp)
 		{
+			// For daily intervals (1440 minutes), align to the start of the day
+			if (interval.TotalMinutes >= 1440)
+			{
+				return timestamp.Date;
+			}
+			
+			// For multi-hour intervals (>= 60 minutes), align to hour boundaries
+			if (interval.TotalMinutes >= 60)
+			{
+				// Use interval minutes to ensure precise alignment for intervals like 240 minutes (4 hours)
+				var totalMinutes = timestamp.TimeOfDay.TotalMinutes;
+				var intervalMinutes = interval.TotalMinutes;
+				var alignedMinutes = Math.Floor(totalMinutes / intervalMinutes) * intervalMinutes;
+				
+				return timestamp.Date.AddMinutes(alignedMinutes);
+			}
+			
+			// For minute intervals, use tick-based alignment
 			var ticks = timestamp.Ticks;
 			var intervalTicks = interval.Ticks;
 			var alignedTicks = (ticks / intervalTicks) * intervalTicks;
