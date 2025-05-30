@@ -10,16 +10,18 @@ namespace Illusionist.Core.Catalog;
 /// <param name="symbol">The trading symbol for this series</param>
 /// <param name="seed">The random seed for deterministic generation</param>
 /// <param name="interval">The time interval between bars</param>
+/// <param name="anchor">The anchor point for time and price reference</param>
 /// <param name="drift">The drift parameter for GBM (default: 0.0001)</param>
 /// <param name="volatility">The volatility parameter for GBM (default: 0.01)</param>
 public sealed partial class GbmBarSeries(
 	string symbol,
 	int seed,
 	TimeSpan interval,
+	BarAnchor anchor,
 	double drift = 0.0001,
 	double volatility = 0.01) : IBarSeries
 {
-	private readonly Generator _generator = new(seed + symbol.GetHashCode(), interval, drift, volatility);
+	private readonly Generator _generator = new(seed + symbol.GetHashCode(), interval, drift, volatility, anchor);
 
 	/// <summary>
 	/// Gets the bar that contains or immediately precedes the specified timestamp.

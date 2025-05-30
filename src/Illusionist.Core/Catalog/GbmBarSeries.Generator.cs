@@ -1,8 +1,7 @@
 namespace Illusionist.Core.Catalog;
 
 public sealed partial class GbmBarSeries
-{
-	/// <summary>
+{	/// <summary>
 	/// Generator that implements Geometric Brownian Motion for deterministic price evolution.
 	/// Uses log-normal distribution characteristics to create realistic market-like behavior.
 	/// </summary>
@@ -13,7 +12,8 @@ public sealed partial class GbmBarSeries
 	/// <param name="interval">The time interval between bars</param>
 	/// <param name="drift">The drift parameter for GBM</param>
 	/// <param name="volatility">The volatility parameter for GBM</param>
-	public sealed class Generator(int seed, TimeSpan interval, double drift, double volatility)
+	/// <param name="anchor">The anchor point for time and price reference</param>
+	public sealed class Generator(int seed, TimeSpan interval, double drift, double volatility, BarAnchor anchor)
 	{
 		private readonly int _intervalHash = interval.Ticks.GetHashCode();
 		private readonly int _paramHash = (drift.GetHashCode() ^ volatility.GetHashCode());
@@ -28,7 +28,6 @@ public sealed partial class GbmBarSeries
 		/// Gets the time interval between bars.
 		/// </summary>
 		public TimeSpan Interval => interval;
-
 		/// <summary>
 		/// Generates a deterministic bar using Geometric Brownian Motion at the specified timestamp.
 		/// The timestamp will be aligned to the bar interval boundary.
@@ -38,36 +37,40 @@ public sealed partial class GbmBarSeries
 		public Bar GetBarAt(DateTime timestamp)
 		{
 			// Align timestamp to interval boundary
-			var alignedTimestamp = AlignToInterval(timestamp);			// Convert to time units for mathematical operations (using hours for better scaling)
-			var hoursFromEpoch = (alignedTimestamp - Epoch).TotalHours;			// Create deterministic noise that varies with time, seed, interval, drift, and volatility
+			var alignedTimestamp = AlignToInterval(timestamp);
+
+			// Compute time delta from anchor in seconds for GBM calculation
+			var t = (alignedTimestamp - anchor.Timestamp).TotalSeconds;
+
+			// Create deterministic noise that varies with time, seed, interval, drift, and volatility
 			var timeHash = CreateDeterministicHash(alignedTimestamp, seed);
 			var combinedSeed = seed ^ timeHash ^ _intervalHash ^ _paramHash;
 
 			// Include interval ticks in the noise calculation to ensure different intervals produce different results
-			var intervalAdjustedTime = hoursFromEpoch + (interval.TotalHours * 123.456); // Large multiplier to make interval differences more significant
+			var intervalAdjustedTime = t + (interval.TotalHours * 123.456); // Large multiplier to make interval differences more significant
 			var intervalModifier = (int)(interval.TotalMinutes * 17); // Additional interval-based modifier
 			var finalSeed = combinedSeed ^ intervalModifier;
-			var noise = PseudoNoise(intervalAdjustedTime, finalSeed);
-			// GBM formula: S(t) = S(0) * exp((μ - σ²/2) * t + σ * W(t))
-			// Start with a base price of 1.0 for mathematical modeling
-			var basePriceLog = Math.Log(1.0); // 0.0
-			var logPrice = basePriceLog + (_hourlyDrift - (_hourlyVolatility * _hourlyVolatility / 2.0)) * hoursFromEpoch + _hourlyVolatility * noise;
+			var noise = PseudoNoise(intervalAdjustedTime, finalSeed);			// GBM formula: price = anchor.Value * exp(drift * t + volatility * noise)
+			// Convert time to hours for scaling
+			var hoursFromAnchor = t / 3600.0;
+			var logPrice = _hourlyDrift * hoursFromAnchor + _hourlyVolatility * noise;
+			var price = (double)anchor.Value * Math.Exp(logPrice);
 
-			// Clamp logPrice to keep prices in reasonable range (0.1 to 10.0)
-			logPrice = Math.Max(Math.Log(0.1), Math.Min(Math.Log(10.0), logPrice));
-
-			var basePrice = Math.Exp(logPrice);			// Generate OHLC values around the base price with interval-dependent variation
+			// Generate OHLC values around the base price with interval-dependent variation
 			var intervalMinutes = interval.TotalMinutes;
 			var variationFactor = Math.Sqrt(intervalMinutes / 60.0) * 0.005; // Scale variation with interval
 
-			var openPrice = basePrice;
+			// Special case: if we're exactly at the anchor timestamp, use anchor value as open price
+			var openPrice = Math.Abs(t) < 1.0 ? (double)anchor.Value : price;
 			var noise2 = PseudoNoise(intervalAdjustedTime + 100, finalSeed);
 			var noise3 = PseudoNoise(intervalAdjustedTime + 200, finalSeed);
 			var noise4 = PseudoNoise(intervalAdjustedTime + 300, finalSeed);
 
 			var closePrice = openPrice * (1.0 + noise2 * variationFactor);
 			var highPrice = Math.Max(openPrice, closePrice) * (1.0 + Math.Abs(noise3) * variationFactor);
-			var lowPrice = Math.Min(openPrice, closePrice) * (1.0 - Math.Abs(noise4) * variationFactor);			// Generate volume using deterministic hash-based approach
+			var lowPrice = Math.Min(openPrice, closePrice) * (1.0 - Math.Abs(noise4) * variationFactor);
+
+			// Generate volume using deterministic hash-based approach
 			var volumeHash = CreateDeterministicHash(alignedTimestamp.AddTicks(1), finalSeed);
 			var volume = (volumeHash % 10000) + 1000; // Volume between 1000-11000
 
