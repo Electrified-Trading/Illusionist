@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
@@ -9,6 +9,8 @@
     <WarningsNotAsErrors>NU1701</WarningsNotAsErrors>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <AssemblyName>Illusionist.Models</AssemblyName>
+    <RootNamespace>Illusionist.Models</RootNamespace>
   </PropertyGroup>
 
 </Project>
