@@ -2,6 +2,8 @@ namespace Illusionist.Core;
 
 public interface ISchedule
 {
+	BarInterval Interval { get; }
+
 	/// <summary>
 	/// Determines whether the given timestamp matches a valid exact interval quantized time.
 	/// </summary>
