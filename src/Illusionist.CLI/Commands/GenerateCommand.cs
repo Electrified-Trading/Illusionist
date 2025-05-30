@@ -1,4 +1,5 @@
 using Illusionist.CLI.Infrastructure;
+using Illusionist.Core.Catalog;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using System.ComponentModel;
@@ -32,10 +33,17 @@ public sealed class GenerateCommand : Command<GenerateCommand.Settings>
 	{
 		AnsiConsole.MarkupLine($"[green]Generating bars for symbol:[/] [yellow]{settings.Symbol}[/]");
 		AnsiConsole.MarkupLine($"[green]Seed:[/] [yellow]{settings.Seed}[/]");
-		AnsiConsole.MarkupLine($"[green]Interval:[/] [yellow]{settings.Interval}[/]");
-		AnsiConsole.WriteLine();
-
+		AnsiConsole.MarkupLine($"[green]Interval:[/] [yellow]{settings.Interval}[/]");		AnsiConsole.WriteLine();
 		var interval = ParseInterval(settings.Interval);
+
+		// Test GBM values
+		AnsiConsole.MarkupLine("[cyan]Testing GBM values:[/]");
+		var gbmFactory = new GbmBarSeries.Factory(settings.Symbol, settings.Seed);
+		var gbmSeries = gbmFactory.GetSeries(interval);
+		var testTimestamp = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
+		var gbmBar = gbmSeries.GetBarAt(testTimestamp);
+		AnsiConsole.MarkupLine($"GBM Open: [yellow]{gbmBar.Open:F2}[/], Expected range: [green]0.5-2.0[/]");
+		AnsiConsole.WriteLine();
 		var factory = new DemoBarSeriesFactory(settings.Seed);
 		var series = factory.GetSeries(interval);
 
