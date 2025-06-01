@@ -47,16 +47,18 @@ public sealed class GenerateCommand : Command<GenerateCommand.Settings>
 	{
 		AnsiConsole.MarkupLine($"[green]Generating bars for symbol:[/] [yellow]{settings.Symbol}[/]");
 		AnsiConsole.MarkupLine($"[green]Seed:[/] [yellow]{settings.Seed}[/]");
-		AnsiConsole.MarkupLine($"[green]Interval:[/] [yellow]{settings.Interval}[/]");		AnsiConsole.MarkupLine($"[green]Factory type:[/] [yellow]{settings.FactoryType.ToUpperInvariant()}[/]");
-		AnsiConsole.WriteLine();
+		AnsiConsole.MarkupLine($"[green]Interval:[/] [yellow]{settings.Interval}[/]");		AnsiConsole.MarkupLine($"[green]Factory type:[/] [yellow]{settings.FactoryType.ToUpperInvariant()}[/]");		AnsiConsole.WriteLine();
 
 		var interval = ParseInterval(settings.Interval);
 		var anchor = new BarAnchor(DateTime.UtcNow.Date.AddHours(9), 100.0m); // Default anchor at market open with $100 price
+		// Create schedule from interval
+		var scheduleFactory = new DefaultEquitiesScheduleFactory();
+		var schedule = scheduleFactory.GetSchedule(interval);
 
 		// Create GBM factory
 		IBarSeriesFactory factory = CreateFactory(settings);
 
-		var series = factory.GetSeries(interval, anchor);
+		var series = factory.GetSeries(schedule, anchor);
 		var startTime = DateTime.UtcNow.Date.AddHours(9); // Market open time
 		var bars = series.GetBars(startTime).Take(5).ToList();
 

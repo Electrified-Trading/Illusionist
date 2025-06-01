@@ -23,12 +23,24 @@ public abstract class BarSeriesTestBase
     /// <param name="parameters">Additional parameters specific to the factory type</param>
     /// <returns>An instance of IBarSeriesFactory</returns>
     protected virtual IBarSeriesFactory CreateFactoryWithParameters(int seed, object parameters) 
-        => CreateFactory(seed);
-
-    /// <summary>
+        => CreateFactory(seed);    /// <summary>
     /// Creates a default BarInterval for testing (1 minute).
     /// </summary>
     protected static BarInterval CreateDefaultInterval() => BarInterval.Minute(1);
+
+    /// <summary>
+    /// Creates a default ISchedule for testing (1 minute).
+    /// </summary>
+    protected static ISchedule CreateDefaultSchedule() => CreateScheduleFromInterval(CreateDefaultInterval());
+
+    /// <summary>
+    /// Creates an ISchedule from a BarInterval using the DefaultEquitiesScheduleFactory.
+    /// </summary>
+    protected static ISchedule CreateScheduleFromInterval(BarInterval interval)
+    {
+        var factory = new DefaultEquitiesScheduleFactory();
+        return factory.GetSchedule(interval);
+    }
     
     /// <summary>
     /// Creates a BarInterval from minutes for testing convenience.
@@ -42,17 +54,16 @@ public abstract class BarSeriesTestBase
 
     [Fact]
     public void GetBarAt_SameSeedAndTimestamp_ReturnsIdenticalBars()
-    {
-        // Arrange
+    {        // Arrange
         const int seed = 12345;
-        var interval = CreateDefaultInterval();
+        var schedule = CreateDefaultSchedule();
         var anchor = CreateDefaultAnchor();
         var timestamp = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
 
         var factory1 = CreateFactory(seed);
         var factory2 = CreateFactory(seed);
-        var series1 = factory1.GetSeries(interval, anchor);
-        var series2 = factory2.GetSeries(interval, anchor);
+        var series1 = factory1.GetSeries(schedule, anchor);
+        var series2 = factory2.GetSeries(schedule, anchor);
 
         // Act
         var bar1 = series1.GetBarAt(timestamp);
@@ -64,18 +75,17 @@ public abstract class BarSeriesTestBase
 
     [Fact]
     public void GetBarAt_DifferentSeeds_ReturnsDifferentBars()
-    {
-        // Arrange
+    {        // Arrange
         const int seed1 = 12345;
         const int seed2 = 54321;
-        var interval = CreateDefaultInterval();
+        var schedule = CreateDefaultSchedule();
         var anchor = CreateDefaultAnchor();
         var timestamp = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
 
         var factory1 = CreateFactory(seed1);
         var factory2 = CreateFactory(seed2);
-        var series1 = factory1.GetSeries(interval, anchor);
-        var series2 = factory2.GetSeries(interval, anchor);
+        var series1 = factory1.GetSeries(schedule, anchor);
+        var series2 = factory2.GetSeries(schedule, anchor);
 
         // Act
         var bar1 = series1.GetBarAt(timestamp);
@@ -87,16 +97,16 @@ public abstract class BarSeriesTestBase
 
     [Fact]
     public void GetBars_MultipleCalls_ReturnsIdenticalSequences()
-    {
-        // Arrange
+    {        // Arrange
         const int seed = 12345;
         var interval = CreateInterval(5);
+        var schedule = CreateScheduleFromInterval(interval);
         var anchor = CreateDefaultAnchor();
         var startTime = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
 
         var factory = CreateFactory(seed);
-        var series1 = factory.GetSeries(interval, anchor);
-        var series2 = factory.GetSeries(interval, anchor);
+        var series1 = factory.GetSeries(schedule, anchor);
+        var series2 = factory.GetSeries(schedule, anchor);
 
         // Act
         var bars1 = series1.GetBars(startTime).Take(10).ToList();
@@ -110,27 +120,24 @@ public abstract class BarSeriesTestBase
         {
             Assert.Equal(bars1[i], bars2[i]);
         }
-    }
-
-    [Fact]
-    public void GetBars_ConsistentWithGetBarAt_SameResults()
+    }    [Fact]    public void GetBars_ConsistentWithGetBarAt_SameResults()
     {
         // Arrange
         const int seed = 12345;
         var interval = CreateDefaultInterval();
         var anchor = CreateDefaultAnchor();
-        var startTime = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
+        var startTime = new DateTime(2025, 1, 3, 9, 30, 0, DateTimeKind.Utc); // Friday, market open
 
         var factory = CreateFactory(seed);
-        var series = factory.GetSeries(interval, anchor);
-
-        // Act
+        var schedule = CreateScheduleFromInterval(interval);
+        var series = factory.GetSeries(schedule, anchor);        // Act
         var barsFromSeries = series.GetBars(startTime).Take(5).ToList();
         var barsFromGetBarAt = new List<Bar>();
+        
+        // Use the actual timestamps from the series instead of simple minute progression
         for (int i = 0; i < 5; i++)
         {
-            var timestamp = startTime.AddMinutes(i);
-            barsFromGetBarAt.Add(series.GetBarAt(timestamp));
+            barsFromGetBarAt.Add(series.GetBarAt(barsFromSeries[i].Timestamp));
         }
 
         // Assert
@@ -141,27 +148,24 @@ public abstract class BarSeriesTestBase
         {
             Assert.Equal(barsFromSeries[i], barsFromGetBarAt[i]);
         }
-    }
-
-    [Fact]
-    public void GetBars_CorrectTimestampProgression_IncrementsByInterval()
+    }    [Fact]    public void GetBars_CorrectTimestampProgression_IncrementsByInterval()
     {
         // Arrange
         const int seed = 12345;
         var interval = CreateInterval(5);
         var anchor = CreateDefaultAnchor();
-        var startTime = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
+        var startTime = new DateTime(2025, 1, 3, 9, 30, 0, DateTimeKind.Utc); // Friday, market open
 
         var factory = CreateFactory(seed);
-        var series = factory.GetSeries(interval, anchor);
+        var schedule = CreateScheduleFromInterval(interval);
+        var series = factory.GetSeries(schedule, anchor);
 
         // Act
-        var bars = series.GetBars(startTime).Take(10).ToList();
-
-        // Assert
+        var bars = series.GetBars(startTime).Take(10).ToList();        // Assert
         for (int i = 0; i < 10; i++)
         {
-            var expectedTimestamp = startTime.Add(TimeSpan.FromMinutes(i * 5));
+            // Calculate expected timestamp using the schedule
+            var expectedTimestamp = i == 0 ? startTime : schedule.GetNextValidBarTime(bars[i - 1].Timestamp);
             Assert.Equal(expectedTimestamp, bars[i].Timestamp);
         }
     }
@@ -171,14 +175,15 @@ public abstract class BarSeriesTestBase
     {
         // Arrange
         const int seed = 12345;
-        var interval1 = CreateDefaultInterval();
-        var interval2 = CreateInterval(5);
+        var interval1 = CreateDefaultInterval();        var interval2 = CreateInterval(5);
         var anchor = CreateDefaultAnchor();
-        var timestamp = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
+        var timestamp = new DateTime(2025, 1, 3, 9, 30, 0, DateTimeKind.Utc); // Friday, market open
 
         var factory = CreateFactory(seed);
-        var series1 = factory.GetSeries(interval1, anchor);
-        var series2 = factory.GetSeries(interval2, anchor);
+        var schedule1 = CreateScheduleFromInterval(interval1);
+        var schedule2 = CreateScheduleFromInterval(interval2);
+        var series1 = factory.GetSeries(schedule1, anchor);
+        var series2 = factory.GetSeries(schedule2, anchor);
 
         // Act
         var bar1 = series1.GetBarAt(timestamp);
@@ -188,9 +193,7 @@ public abstract class BarSeriesTestBase
         Assert.NotEqual(bar1, bar2);
         Assert.Equal(timestamp, bar1.Timestamp);
         Assert.Equal(timestamp, bar2.Timestamp);
-    }
-
-    [Fact]
+    }    [Fact]
     public void GetBars_ValidOhlcRelationships_AllBarsValid()
     {
         // Arrange
@@ -200,7 +203,8 @@ public abstract class BarSeriesTestBase
         var startTime = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
 
         var factory = CreateFactory(seed);
-        var series = factory.GetSeries(interval, anchor);
+        var schedule = CreateScheduleFromInterval(interval);
+        var series = factory.GetSeries(schedule, anchor);
 
         // Act
         var bars = series.GetBars(startTime).Take(100).ToList();
@@ -229,11 +233,11 @@ public abstract class BarSeriesTestBase
         // Arrange
         const int seed = 12345;
         var interval = CreateInterval(intervalMinutes);
-        var anchor = CreateDefaultAnchor();
-        var timestamp = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
+        var anchor = CreateDefaultAnchor();        var timestamp = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
 
         var factory = CreateFactory(seed);
-        var series = factory.GetSeries(interval, anchor);
+        var schedule = CreateScheduleFromInterval(interval);
+        var series = factory.GetSeries(schedule, anchor);
 
         // Act
         var bar = series.GetBarAt(timestamp);
@@ -243,14 +247,13 @@ public abstract class BarSeriesTestBase
         Assert.Equal(timestamp, bar.Timestamp);
         Assert.Equal(5, bars.Count);
         Assert.All(bars, b => Assert.True(b.High >= b.Low));
-        Assert.All(bars, b => Assert.True(b.Volume > 0));
-
-        // Check timestamp progression
+        Assert.All(bars, b => Assert.True(b.Volume > 0));        // Check timestamp progression - with schedule-aware advancement
         for (int i = 1; i < bars.Count; i++)
         {
-            var expectedInterval = TimeSpan.FromMinutes(intervalMinutes);
-            var actualInterval = bars[i].Timestamp - bars[i - 1].Timestamp;
-            Assert.Equal(expectedInterval, actualInterval);
+            // With market hours, intervals may not be exactly the configured interval
+            // due to market close/open transitions, so we just verify progression is forward
+            Assert.True(bars[i].Timestamp > bars[i - 1].Timestamp, 
+                $"Timestamp should progress forward: {bars[i - 1].Timestamp} < {bars[i].Timestamp}");
         }
     }
 }

@@ -1,7 +1,8 @@
 namespace Illusionist.Core.Catalog;
 
 public sealed partial class GbmBarSeries
-{	/// <summary>
+{
+	/// <summary>
 	/// Generator that implements Geometric Brownian Motion for deterministic price evolution.
 	/// Uses log-normal distribution characteristics to create realistic market-like behavior.
 	/// </summary>
@@ -9,13 +10,15 @@ public sealed partial class GbmBarSeries
 	/// Initializes a new instance of the <see cref="Generator"/> class.
 	/// </remarks>
 	/// <param name="seed">The random seed for deterministic generation</param>
-	/// <param name="interval">The time interval between bars</param>
+	/// <param name="schedule">The schedule defining valid bars</param>
 	/// <param name="drift">The drift parameter for GBM</param>
 	/// <param name="volatility">The volatility parameter for GBM</param>
 	/// <param name="anchor">The anchor point for time and price reference</param>
-	public sealed class Generator(int seed, TimeSpan interval, double drift, double volatility, BarAnchor anchor)
+	public sealed class Generator(int seed, ISchedule schedule, double drift, double volatility, BarAnchor anchor)
 	{
-		private readonly int _intervalHash = interval.Ticks.GetHashCode();
+		private readonly ISchedule _schedule = schedule;
+		private readonly TimeSpan _interval = GetIntervalFromSchedule(schedule);
+		private readonly int _intervalHash = GetIntervalFromSchedule(schedule).Ticks.GetHashCode();
 		private readonly int _paramHash = (drift.GetHashCode() ^ volatility.GetHashCode());
 
 		private static readonly DateTime Epoch = DateTime.UnixEpoch;
@@ -27,7 +30,25 @@ public sealed partial class GbmBarSeries
 		/// <summary>
 		/// Gets the time interval between bars.
 		/// </summary>
-		public TimeSpan Interval => interval;
+		public TimeSpan Interval => _interval;
+
+		/// <summary>
+		/// Gets the schedule for valid bars.
+		/// </summary>
+		public ISchedule Schedule => _schedule;
+
+		/// <summary>
+		/// Extracts the time interval from a schedule that supports DefaultEquitiesSchedule.
+		/// </summary>
+		private static TimeSpan GetIntervalFromSchedule(ISchedule schedule)
+		{
+			return schedule switch
+			{
+				DefaultEquitiesSchedule equitiesSchedule => equitiesSchedule.Interval.Interval,
+				_ => throw new ArgumentException($"Unsupported schedule type: {schedule.GetType()}")
+			};
+		}
+
 		/// <summary>
 		/// Generates a deterministic bar using Geometric Brownian Motion at the specified timestamp.
 		/// The timestamp will be aligned to the bar interval boundary.
@@ -47,17 +68,19 @@ public sealed partial class GbmBarSeries
 			var combinedSeed = seed ^ timeHash ^ _intervalHash ^ _paramHash;
 
 			// Include interval ticks in the noise calculation to ensure different intervals produce different results
-			var intervalAdjustedTime = t + (interval.TotalHours * 123.456); // Large multiplier to make interval differences more significant
-			var intervalModifier = (int)(interval.TotalMinutes * 17); // Additional interval-based modifier
+			var intervalAdjustedTime = t + (_interval.TotalHours * 123.456); // Large multiplier to make interval differences more significant
+			var intervalModifier = (int)(_interval.TotalMinutes * 17); // Additional interval-based modifier
 			var finalSeed = combinedSeed ^ intervalModifier;
-			var noise = PseudoNoise(intervalAdjustedTime, finalSeed);			// GBM formula: price = anchor.Value * exp(drift * t + volatility * noise)
+			var noise = PseudoNoise(intervalAdjustedTime, finalSeed);
+
+			// GBM formula: price = anchor.Value * exp(drift * t + volatility * noise)
 			// Convert time to hours for scaling
 			var hoursFromAnchor = t / 3600.0;
 			var logPrice = _hourlyDrift * hoursFromAnchor + _hourlyVolatility * noise;
 			var price = (double)anchor.Value * Math.Exp(logPrice);
 
 			// Generate OHLC values around the base price with interval-dependent variation
-			var intervalMinutes = interval.TotalMinutes;
+			var intervalMinutes = _interval.TotalMinutes;
 			var variationFactor = Math.Sqrt(intervalMinutes / 60.0) * 0.005; // Scale variation with interval
 
 			// Special case: if we're exactly at the anchor timestamp, use anchor value as open price
@@ -126,6 +149,7 @@ public sealed partial class GbmBarSeries
 
 			return Math.Abs(combined);
 		}
+
 		/// <summary>
 		/// Aligns the given timestamp to the nearest interval boundary.
 		/// </summary>
@@ -134,17 +158,17 @@ public sealed partial class GbmBarSeries
 		private DateTime AlignToInterval(DateTime timestamp)
 		{
 			// For daily intervals (1440 minutes), align to the start of the day
-			if (interval.TotalMinutes >= 1440)
+			if (_interval.TotalMinutes >= 1440)
 			{
 				return timestamp.Date;
 			}
 			
 			// For multi-hour intervals (>= 60 minutes), align to hour boundaries
-			if (interval.TotalMinutes >= 60)
+			if (_interval.TotalMinutes >= 60)
 			{
 				// Use interval minutes to ensure precise alignment for intervals like 240 minutes (4 hours)
 				var totalMinutes = timestamp.TimeOfDay.TotalMinutes;
-				var intervalMinutes = interval.TotalMinutes;
+				var intervalMinutes = _interval.TotalMinutes;
 				var alignedMinutes = Math.Floor(totalMinutes / intervalMinutes) * intervalMinutes;
 				
 				return timestamp.Date.AddMinutes(alignedMinutes);
@@ -152,7 +176,7 @@ public sealed partial class GbmBarSeries
 			
 			// For minute intervals, use tick-based alignment
 			var ticks = timestamp.Ticks;
-			var intervalTicks = interval.Ticks;
+			var intervalTicks = _interval.Ticks;
 			var alignedTicks = (ticks / intervalTicks) * intervalTicks;
 			return new DateTime(alignedTicks, timestamp.Kind);
 		}

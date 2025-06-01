@@ -12,13 +12,14 @@ public class BarSeriesFactoryTests
 		// Arrange
 		const int seed = 12345;
 		var interval = BarInterval.Minute(1);
+		var schedule = CreateScheduleFromInterval(interval);
 		var anchor = new BarAnchor(new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc), 100.0m);
 		var factory1 = CreateTestFactory(seed);
 		var factory2 = CreateTestFactory(seed);
 
 		// Act
-		var series1 = factory1.GetSeries(interval, anchor);
-		var series2 = factory2.GetSeries(interval, anchor);
+		var series1 = factory1.GetSeries(schedule, anchor);
+		var series2 = factory2.GetSeries(schedule, anchor);
 
 		var startTime = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
 		var bars1 = series1.GetBars(startTime).Take(5).ToArray();
@@ -35,19 +36,19 @@ public class BarSeriesFactoryTests
 			Assert.Equal(bars1[i].Close, bars2[i].Close);
 			Assert.Equal(bars1[i].Volume, bars2[i].Volume);
 		}
-	}
-	[Fact]
+	}	[Fact]
 	public void GetSeries_WithDifferentSeeds_ShouldProduceDifferentResults()
 	{
 		// Arrange
 		var factory1 = CreateTestFactory(12345);
 		var factory2 = CreateTestFactory(54321);
 		var interval = BarInterval.Minute(1);
+		var schedule = CreateScheduleFromInterval(interval);
 		var anchor = new BarAnchor(new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc), 100.0m);
 
 		// Act
-		var series1 = factory1.GetSeries(interval, anchor);
-		var series2 = factory2.GetSeries(interval, anchor);
+		var series1 = factory1.GetSeries(schedule, anchor);
+		var series2 = factory2.GetSeries(schedule, anchor);
 
 		var startTime = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
 		var bar1 = series1.GetBarAt(startTime);
@@ -55,8 +56,7 @@ public class BarSeriesFactoryTests
 
 		// Assert
 		Assert.NotEqual(bar1.Open, bar2.Open);
-	}
-	[Theory]
+	}	[Theory]
 	[InlineData(1)] // 1 minute
 	[InlineData(5)] // 5 minutes
 	[InlineData(60)] // 1 hour
@@ -65,10 +65,11 @@ public class BarSeriesFactoryTests
 		// Arrange
 		var factory = CreateTestFactory(42);
 		var interval = BarInterval.Minute((ushort)intervalMinutes);
+		var schedule = CreateScheduleFromInterval(interval);
 		var anchor = new BarAnchor(new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc), 100.0m);
 
 		// Act
-		var series = factory.GetSeries(interval, anchor);
+		var series = factory.GetSeries(schedule, anchor);
 
 		// Assert
 		Assert.NotNull(series);
@@ -81,16 +82,28 @@ public class BarSeriesFactoryTests
 		Assert.True(bar.Low <= bar.Open);
 		Assert.True(bar.Low <= bar.Close);
 		Assert.True(bar.Volume > 0);
-	}	private static IBarSeriesFactory CreateTestFactory(int seed)
+	}
+
+	private static ISchedule CreateScheduleFromInterval(BarInterval interval)
+	{
+		var factory = new DefaultEquitiesScheduleFactory();
+		return factory.GetSchedule(interval);
+	}
+
+	private static IBarSeriesFactory CreateTestFactory(int seed)
 	{
 		// TODO: Replace with actual factory implementation when available
 		var factory = Substitute.For<IBarSeriesFactory>();
 
 		// For now, return a mock that simulates deterministic behavior
-		factory.GetSeries(Arg.Any<BarInterval>(), Arg.Any<BarAnchor>()).Returns(callInfo =>
+		factory.GetSeries(Arg.Any<ISchedule>(), Arg.Any<BarAnchor>()).Returns(callInfo =>
 		{
-			var interval = callInfo.Arg<BarInterval>();
-			return CreateTestSeries(seed, interval.Interval);
+			var schedule = callInfo.Arg<ISchedule>();
+			// Extract interval from schedule (assuming DefaultEquitiesSchedule)
+			var interval = schedule is DefaultEquitiesSchedule equitiesSchedule 
+				? equitiesSchedule.Interval.Interval 
+				: TimeSpan.FromMinutes(1); // fallback
+			return CreateTestSeries(seed, interval);
 		});
 
 		return factory;

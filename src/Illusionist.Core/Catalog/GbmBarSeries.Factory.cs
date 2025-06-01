@@ -13,15 +13,15 @@ public sealed partial class GbmBarSeries
 	/// <param name="drift">The drift parameter for GBM (annual growth rate)</param>
 	/// <param name="volatility">The volatility parameter for GBM (annual volatility)</param>
 	public sealed class Factory(string symbol, int seed, double drift = 0.0001, double volatility = 0.01) : IBarSeriesFactory
-	{		/// <summary>
-		/// Creates a GBM bar series with the specified bar interval and anchor point.
-		/// </summary>
-		/// <param name="interval">The bar interval configuration (unit and length)</param>
-		/// <param name="anchor">The anchor point for bar alignment and pricing reference</param>
-		/// <returns>A deterministic GBM bar series instance</returns>
-		public IBarSeries GetSeries(BarInterval interval, BarAnchor anchor)
-		{
-			return new GbmBarSeries(symbol, seed, interval.Interval, anchor, drift, volatility);
-		}
+	{	/// <summary>
+	/// Creates a GBM bar series with the specified schedule and anchor point.
+	/// </summary>
+	/// <param name="schedule">The schedule defining valid bars</param>
+	/// <param name="anchor">The anchor point for bar alignment and pricing reference</param>
+	/// <returns>A deterministic GBM bar series instance</returns>
+	public IBarSeries GetSeries(ISchedule schedule, BarAnchor anchor)
+	{
+		return new GbmBarSeries(symbol, seed, schedule, anchor, drift, volatility);
+	}
 	}
 }

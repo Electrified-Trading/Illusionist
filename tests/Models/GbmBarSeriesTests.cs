@@ -56,14 +56,14 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 		var interval = CreateDefaultInterval();
 		var anchor = CreateDefaultAnchor();
 		var timestamp = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
-
 		var params1 = new Dictionary<string, double> { ["drift"] = 0.0001 };
 		var params2 = new Dictionary<string, double> { ["drift"] = 0.0005 };
 
 		var factory1 = CreateFactoryWithParameters(seed, params1);
 		var factory2 = CreateFactoryWithParameters(seed, params2);
-		var series1 = factory1.GetSeries(interval, anchor);
-		var series2 = factory2.GetSeries(interval, anchor);
+		var schedule = CreateScheduleFromInterval(interval);
+		var series1 = factory1.GetSeries(schedule, anchor);
+		var series2 = factory2.GetSeries(schedule, anchor);
 
 		// Act
 		var bar1 = series1.GetBarAt(timestamp);
@@ -82,14 +82,14 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 		var interval = CreateDefaultInterval();
 		var anchor = CreateDefaultAnchor();
 		var timestamp = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
-
 		var params1 = new Dictionary<string, double> { ["volatility"] = 0.01 };
 		var params2 = new Dictionary<string, double> { ["volatility"] = 0.05 };
 
 		var factory1 = CreateFactoryWithParameters(seed, params1);
 		var factory2 = CreateFactoryWithParameters(seed, params2);
-		var series1 = factory1.GetSeries(interval, anchor);
-		var series2 = factory2.GetSeries(interval, anchor);
+		var schedule = CreateScheduleFromInterval(interval);
+		var series1 = factory1.GetSeries(schedule, anchor);
+		var series2 = factory2.GetSeries(schedule, anchor);
 
 		// Act
 		var bar1 = series1.GetBarAt(timestamp);
@@ -99,8 +99,7 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 		Assert.NotEqual(bar1, bar2);
 		Assert.Equal(timestamp, bar1.Timestamp);
 		Assert.Equal(timestamp, bar2.Timestamp);
-	}
-	[Fact]
+	}	[Fact]
 	public void GetBarAt_ValidOhlcRelationships_HighIsHighestLowIsLowest()
 	{
 		// Arrange
@@ -110,7 +109,8 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 		var timestamp = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
 
 		var factory = CreateFactory(seed);
-		var series = factory.GetSeries(interval, anchor);
+		var schedule = CreateScheduleFromInterval(interval);
+		var series = factory.GetSeries(schedule, anchor);
 
 		// Act
 		var bar = series.GetBarAt(timestamp);
@@ -121,8 +121,7 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 		Assert.True(bar.Low <= bar.Open, "Low should be <= Open");
 		Assert.True(bar.Low <= bar.Close, "Low should be <= Close");
 		Assert.True(bar.High >= bar.Low, "High should be >= Low");
-	}
-	[Fact]
+	}	[Fact]
 	public void GetBarAt_PositiveVolume_VolumeIsAlwaysPositive()
 	{
 		// Arrange
@@ -130,7 +129,8 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 		var interval = CreateDefaultInterval();
 		var anchor = CreateDefaultAnchor();
 		var factory = CreateFactory(seed);
-		var series = factory.GetSeries(interval, anchor);
+		var schedule = CreateScheduleFromInterval(interval);
+		var series = factory.GetSeries(schedule, anchor);
 
 		// Act & Assert
 		for (int i = 0; i < 100; i++)
@@ -140,8 +140,7 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 
 			Assert.True(bar.Volume > 0, $"Volume should be positive for timestamp {timestamp}");
 		}
-	}
-	[Fact]
+	}	[Fact]
 	public void GetBarAt_ReasonablePriceRange_PricesWithinExpectedBounds()
 	{
 		// Arrange
@@ -151,7 +150,8 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 		var timestamp = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
 
 		var factory = CreateFactory(seed);
-		var series = factory.GetSeries(interval, anchor);
+		var schedule = CreateScheduleFromInterval(interval);
+		var series = factory.GetSeries(schedule, anchor);
 
 		// Act
 		var bar = series.GetBarAt(timestamp);
@@ -177,7 +177,8 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 		var timestamp = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
 
 		var factory = CreateFactory(seed);
-		var series = factory.GetSeries(interval, anchor);
+		var schedule = CreateScheduleFromInterval(interval);
+		var series = factory.GetSeries(schedule, anchor);
 
 		// Act
 		var bar = series.GetBarAt(timestamp);
@@ -187,8 +188,7 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 		Assert.True(bar.Open is > 99.0m and < 101.0m, "Open should be near anchor price");
 		Assert.True(bar.Volume >= 1000m, "Volume should be at least 1000");
 		Assert.Equal(timestamp, bar.Timestamp);
-	}
-	[Fact]
+	}	[Fact]
 	public void Generator_DirectAccess_WorksCorrectly()
 	{
 		// Arrange
@@ -197,7 +197,8 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 		var timestamp = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
 		var anchor = new BarAnchor(new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc), 100.0m);
 
-		var generator = new GbmBarSeries.Generator(seed, interval, 0.0001, 0.01, anchor);
+		var schedule = CreateScheduleFromInterval(BarInterval.Minute(1));
+		var generator = new GbmBarSeries.Generator(seed, schedule, 0.0001, 0.01, anchor);
 
 		// Act
 		var bar = generator.GetBarAt(timestamp);
@@ -211,14 +212,14 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 
 	[Fact]
 	public void GetBarAt_AnchorTime_ReturnsBarWithAnchorPrice()
-	{
-		// Arrange
+	{		// Arrange
 		const int seed = 12345;
 		var interval = CreateDefaultInterval();
 		var anchor = new BarAnchor(new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc), 150.0m);
 
 		var factory = CreateFactory(seed);
-		var series = factory.GetSeries(interval, anchor);
+		var schedule = CreateScheduleFromInterval(interval);
+		var series = factory.GetSeries(schedule, anchor);
 
 		// Act
 		var bar = series.GetBarAt(anchor.Timestamp);
@@ -232,12 +233,12 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 	{
 		// Arrange
 		const int seed = 12345;
-		var interval = CreateDefaultInterval();
-		var anchor = new BarAnchor(new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc), 100.0m);
+		var interval = CreateDefaultInterval();		var anchor = new BarAnchor(new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc), 100.0m);
 		
 		// Use higher drift (50% annual) and lower volatility to make drift effect visible over one day
 		var factory = new GbmBarSeries.Factory("AAPL", seed, drift: 0.5, volatility: 0.001);
-		var series = factory.GetSeries(interval, anchor);
+		var schedule = CreateScheduleFromInterval(interval);
+		var series = factory.GetSeries(schedule, anchor);
 
 		// Act
 		var barAtAnchor = series.GetBarAt(anchor.Timestamp);
@@ -252,12 +253,12 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 	{
 		// Arrange
 		const int seed = 12345;
-		var interval = CreateDefaultInterval();
-		var anchor = new BarAnchor(new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc), 100.0m);
+		var interval = CreateDefaultInterval();		var anchor = new BarAnchor(new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc), 100.0m);
 		
 		// Use higher drift (50% annual) and lower volatility to make drift effect visible over one day
 		var factory = new GbmBarSeries.Factory("AAPL", seed, drift: 0.5, volatility: 0.001);
-		var series = factory.GetSeries(interval, anchor);
+		var schedule = CreateScheduleFromInterval(interval);
+		var series = factory.GetSeries(schedule, anchor);
 
 		// Act
 		var barOneDayBefore = series.GetBarAt(anchor.Timestamp.AddDays(-1));
