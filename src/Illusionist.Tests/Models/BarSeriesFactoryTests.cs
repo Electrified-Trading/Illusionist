@@ -1,4 +1,4 @@
-using Illusionist.Models;
+using Illusionist.Core;
 using NSubstitute;
 
 namespace Illusionist.Tests.Models;

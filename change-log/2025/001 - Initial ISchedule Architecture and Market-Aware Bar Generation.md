@@ -102,10 +102,7 @@ The project follows clean architecture principles with clear separation of conce
 - Domain interfaces (`ISchedule`, `IBarSeries`, `IBarSeriesFactory`)
 - Business logic implementations (`DefaultEquitiesSchedule`, `GbmBarSeries`)
 - Mathematical modeling (`GbmBarSeries.Generator`)
-
-**Models Layer (`Illusionist.Models`)**
 - Shared data structures (`Bar` record)
-- Interface contracts for cross-project compatibility
 
 **Application Layer (`Illusionist.CLI`)**
 - User interface and command handling
@@ -166,11 +163,6 @@ dotnet run --project src/Illusionist.CLI generate --symbol AAPL --seed 12345 --i
 - `src/Illusionist.Core/Catalog/GbmBarSeries.cs` - Main GBM implementation with schedule integration
 - `src/Illusionist.Core/Catalog/GbmBarSeries.Factory.cs` - Factory for GBM bar series creation
 - `src/Illusionist.Core/Catalog/GbmBarSeries.Generator.cs` - Mathematical GBM engine with deterministic generation
-
-### Models Layer
-- `src/Illusionist.Models/IBarSeriesFactory.cs` - Shared interface for cross-project compatibility
-- `src/Illusionist.Models/IBarSeries.cs` - Shared bar series interface
-- `src/Illusionist.Models/Bar.cs` - Shared OHLCV data structure
 
 ### CLI Application
 - `src/Illusionist.CLI/Program.cs` - Application entry point with UTF-8 configuration

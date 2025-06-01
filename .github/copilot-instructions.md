@@ -96,6 +96,7 @@ With tests, it's strongly recommended to use folders and partial classes to keep
 
 ## 🔍 AI Coding Rules
 
+* **Read the change-log first** — Check `change-log/` directory to understand project status, recent implementations, and architectural decisions before making changes.
 * Reuse existing types and interfaces.
 * Avoid boilerplate, scaffolding, and speculative refactors.
 * Never edit `.editorconfig`, `.github/`, or directive files without instruction.

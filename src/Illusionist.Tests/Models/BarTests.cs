@@ -1,4 +1,4 @@
-using Illusionist.Models;
+using Illusionist.Core;
 
 namespace Illusionist.Tests.Models;
 
