@@ -1,5 +1,9 @@
 using Illusionist.CLI.Commands;
 using Spectre.Console.Cli;
+using System.Text;
+
+// Set console to UTF-8 to properly display Unicode characters (like table borders)
+Console.OutputEncoding = Encoding.UTF8;
 
 var app = new CommandApp();
 app.Configure(config =>
