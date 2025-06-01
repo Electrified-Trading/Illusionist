@@ -33,6 +33,7 @@ public sealed partial class GbmBarSeries(
 	{
 		return _generator.GetBarAt(timestamp);
 	}
+	
 	/// <summary>
 	/// Gets an enumerable sequence of bars starting from the specified timestamp.
 	/// Each bar follows GBM price evolution and uses schedule-aware time advancement.
@@ -44,7 +45,7 @@ public sealed partial class GbmBarSeries(
 		var current = start;
 		var firstBar = _generator.GetBarAt(current);
 		yield return firstBar;
-		
+
 		// Use schedule-aware time advancement
 		while (true)
 		{

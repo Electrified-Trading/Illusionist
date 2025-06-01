@@ -7,21 +7,21 @@ namespace Illusionist.Core;
 /// </summary>
 public readonly partial record struct DefaultEquitiesSchedule(BarInterval Interval) : ISchedule
 {
-    /// <summary>
-    /// Market opening time (9:30 AM).
-    /// </summary>
-    public static readonly TimeOnly MarketOpen = new(9, 30, 0);
+	/// <summary>
+	/// Market opening time (9:30 AM).
+	/// </summary>
+	public static readonly TimeOnly MarketOpen = new(9, 30, 0);
 
-    /// <summary>
-    /// Market closing time (4:00 PM).
-    /// </summary>
-    public static readonly TimeOnly MarketClose = new(16, 0, 0);
+	/// <summary>
+	/// Market closing time (4:00 PM).
+	/// </summary>
+	public static readonly TimeOnly MarketClose = new(16, 0, 0);
 
-    /// <summary>
-    /// U.S. market holidays for 2024 and 2025.
-    /// </summary>
-    private static readonly HashSet<DateOnly> Holidays = new()
-    {
+	/// <summary>
+	/// U.S. market holidays for 2024 and 2025.
+	/// </summary>
+	private static readonly HashSet<DateOnly> Holidays =
+	[
         // 2024 holidays
         new(2024, 1, 1),   // New Year's Day
         new(2024, 1, 15),  // Martin Luther King Jr. Day
@@ -45,93 +45,93 @@ public readonly partial record struct DefaultEquitiesSchedule(BarInterval Interv
         new(2025, 9, 1),   // Labor Day
         new(2025, 11, 27), // Thanksgiving Day
         new(2025, 12, 25)  // Christmas Day
-    };
+    ];
 
-    /// <summary>
-    /// Determines whether the given timestamp is a valid bar time during market hours.
-    /// </summary>
-    /// <param name="timestamp">The timestamp to validate.</param>
-    /// <returns>True if the timestamp falls within market hours on a trading day.</returns>
-    public bool IsValidBarTime(DateTime timestamp)
-    {
-        var date = DateOnly.FromDateTime(timestamp);
-        var time = TimeOnly.FromDateTime(timestamp);
+	/// <summary>
+	/// Determines whether the given timestamp is a valid bar time during market hours.
+	/// </summary>
+	/// <param name="timestamp">The timestamp to validate.</param>
+	/// <returns>True if the timestamp falls within market hours on a trading day.</returns>
+	public bool IsValidBarTime(DateTime timestamp)
+	{
+		var date = DateOnly.FromDateTime(timestamp);
+		var time = TimeOnly.FromDateTime(timestamp);
 
-        // Check if it's a weekend
-        if (timestamp.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
-            return false;
+		// Check if it's a weekend
+		if (timestamp.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+			return false;
 
-        // Check if it's a holiday
-        if (Holidays.Contains(date))
-            return false;
+		// Check if it's a holiday
+		if (Holidays.Contains(date))
+			return false;
 
-        // Check if it's within market hours
-        return time >= MarketOpen && time < MarketClose;
-    }
+		// Check if it's within market hours
+		return time >= MarketOpen && time < MarketClose;
+	}
 
-    /// <summary>
-    /// Returns the next valid bar timestamp following the specified point in time.
-    /// Advances by the configured interval and skips weekends and holidays.
-    /// </summary>
-    /// <param name="prior">The reference timestamp to advance from.</param>
-    /// <returns>The next valid bar timestamp.</returns>
-    public DateTime GetNextValidBarTime(DateTime prior)
-    {
-        var next = prior.Add(Interval.Interval);
+	/// <summary>
+	/// Returns the next valid bar timestamp following the specified point in time.
+	/// Advances by the configured interval and skips weekends and holidays.
+	/// </summary>
+	/// <param name="prior">The reference timestamp to advance from.</param>
+	/// <returns>The next valid bar timestamp.</returns>
+	public DateTime GetNextValidBarTime(DateTime prior)
+	{
+		var next = prior.Add(Interval.Interval);
 
-        // Keep advancing until we find a valid bar time
-        while (!IsValidBarTime(next))
-        {
-            var date = DateOnly.FromDateTime(next);
-            var time = TimeOnly.FromDateTime(next);
+		// Keep advancing until we find a valid bar time
+		while (!IsValidBarTime(next))
+		{
+			var date = DateOnly.FromDateTime(next);
+			var time = TimeOnly.FromDateTime(next);
 
-            // If we're past market close or it's a weekend/holiday, jump to next trading day at market open
-            if (time >= MarketClose 
-                || next.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday 
-                || Holidays.Contains(date))
-            {
-                next = GetNextTradingDay(date).ToDateTime(MarketOpen);
-            }
-            else if (time < MarketOpen)
-            {
-                // If we're before market open, jump to market open
-                next = date.ToDateTime(MarketOpen);
-            }
-            else
-            {
-                // We're within the trading day but hit an invalid time, advance by interval
-                next = next.Add(Interval.Interval);
-            }
-        }
+			// If we're past market close or it's a weekend/holiday, jump to next trading day at market open
+			if (time >= MarketClose
+				|| next.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday
+				|| Holidays.Contains(date))
+			{
+				next = GetNextTradingDay(date).ToDateTime(MarketOpen);
+			}
+			else if (time < MarketOpen)
+			{
+				// If we're before market open, jump to market open
+				next = date.ToDateTime(MarketOpen);
+			}
+			else
+			{
+				// We're within the trading day but hit an invalid time, advance by interval
+				next = next.Add(Interval.Interval);
+			}
+		}
 
-        return next;
-    }
+		return next;
+	}
 
-    /// <summary>
-    /// Gets the next valid trading day after the specified date.
-    /// </summary>
-    /// <param name="date">The reference date.</param>
-    /// <returns>The next trading day.</returns>
-    private static DateOnly GetNextTradingDay(DateOnly date)
-    {
-        var nextDate = date.AddDays(1);
+	/// <summary>
+	/// Gets the next valid trading day after the specified date.
+	/// </summary>
+	/// <param name="date">The reference date.</param>
+	/// <returns>The next trading day.</returns>
+	private static DateOnly GetNextTradingDay(DateOnly date)
+	{
+		var nextDate = date.AddDays(1);
 
-        while (IsWeekendOrHoliday(nextDate))
-        {
-            nextDate = nextDate.AddDays(1);
-        }
+		while (IsWeekendOrHoliday(nextDate))
+		{
+			nextDate = nextDate.AddDays(1);
+		}
 
-        return nextDate;
-    }
+		return nextDate;
+	}
 
-    /// <summary>
-    /// Determines if the specified date is a weekend or holiday.
-    /// </summary>
-    /// <param name="date">The date to check.</param>
-    /// <returns>True if the date is a weekend or holiday.</returns>
-    private static bool IsWeekendOrHoliday(DateOnly date)
-    {
-        var dayOfWeek = date.DayOfWeek;
-        return dayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday || Holidays.Contains(date);
-    }
+	/// <summary>
+	/// Determines if the specified date is a weekend or holiday.
+	/// </summary>
+	/// <param name="date">The date to check.</param>
+	/// <returns>True if the date is a weekend or holiday.</returns>
+	private static bool IsWeekendOrHoliday(DateOnly date)
+	{
+		var dayOfWeek = date.DayOfWeek;
+		return dayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday || Holidays.Contains(date);
+	}
 }

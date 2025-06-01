@@ -16,12 +16,8 @@ public sealed partial class GbmBarSeries
 	/// <param name="anchor">The anchor point for time and price reference</param>
 	public sealed class Generator(int seed, ISchedule schedule, double drift, double volatility, BarAnchor anchor)
 	{
-		private readonly ISchedule _schedule = schedule;
-		private readonly TimeSpan _interval = GetIntervalFromSchedule(schedule);
 		private readonly int _intervalHash = GetIntervalFromSchedule(schedule).Ticks.GetHashCode();
-		private readonly int _paramHash = (drift.GetHashCode() ^ volatility.GetHashCode());
-
-		private static readonly DateTime Epoch = DateTime.UnixEpoch;
+		private readonly int _paramHash = drift.GetHashCode() ^ volatility.GetHashCode();
 
 		// Scale parameters to work with hourly time units and make them more reasonable
 		private readonly double _hourlyDrift = drift / (365.25 * 24); // Convert annual drift to hourly
@@ -30,12 +26,12 @@ public sealed partial class GbmBarSeries
 		/// <summary>
 		/// Gets the time interval between bars.
 		/// </summary>
-		public TimeSpan Interval => _interval;
+		public TimeSpan Interval { get; } = GetIntervalFromSchedule(schedule);
 
 		/// <summary>
 		/// Gets the schedule for valid bars.
 		/// </summary>
-		public ISchedule Schedule => _schedule;
+		public ISchedule Schedule { get; } = schedule;
 
 		/// <summary>
 		/// Extracts the time interval from a schedule that supports DefaultEquitiesSchedule.
@@ -68,8 +64,8 @@ public sealed partial class GbmBarSeries
 			var combinedSeed = seed ^ timeHash ^ _intervalHash ^ _paramHash;
 
 			// Include interval ticks in the noise calculation to ensure different intervals produce different results
-			var intervalAdjustedTime = t + (_interval.TotalHours * 123.456); // Large multiplier to make interval differences more significant
-			var intervalModifier = (int)(_interval.TotalMinutes * 17); // Additional interval-based modifier
+			var intervalAdjustedTime = t + (Interval.TotalHours * 123.456); // Large multiplier to make interval differences more significant
+			var intervalModifier = (int)(Interval.TotalMinutes * 17); // Additional interval-based modifier
 			var finalSeed = combinedSeed ^ intervalModifier;
 			var noise = PseudoNoise(intervalAdjustedTime, finalSeed);
 
@@ -80,7 +76,7 @@ public sealed partial class GbmBarSeries
 			var price = (double)anchor.Value * Math.Exp(logPrice);
 
 			// Generate OHLC values around the base price with interval-dependent variation
-			var intervalMinutes = _interval.TotalMinutes;
+			var intervalMinutes = Interval.TotalMinutes;
 			var variationFactor = Math.Sqrt(intervalMinutes / 60.0) * 0.005; // Scale variation with interval
 
 			// Special case: if we're exactly at the anchor timestamp, use anchor value as open price
@@ -151,34 +147,28 @@ public sealed partial class GbmBarSeries
 		}
 
 		/// <summary>
-		/// Aligns the given timestamp to the nearest interval boundary.
+		/// Aligns the given timestamp to the previous interval boundary.
+		/// For sub-day intervals, aligns within the day. For daily+ intervals, aligns to day start.
 		/// </summary>
 		/// <param name="timestamp">The timestamp to align</param>
-		/// <returns>The aligned timestamp</returns>
+		/// <returns>The aligned timestamp at the previous interval boundary</returns>
 		private DateTime AlignToInterval(DateTime timestamp)
 		{
-			// For daily intervals (1440 minutes), align to the start of the day
-			if (_interval.TotalMinutes >= 1440)
+			if (Interval >= TimeSpan.FromDays(1))
 			{
+				// For daily or longer intervals, align to start of day
 				return timestamp.Date;
 			}
-			
-			// For multi-hour intervals (>= 60 minutes), align to hour boundaries
-			if (_interval.TotalMinutes >= 60)
-			{
-				// Use interval minutes to ensure precise alignment for intervals like 240 minutes (4 hours)
-				var totalMinutes = timestamp.TimeOfDay.TotalMinutes;
-				var intervalMinutes = _interval.TotalMinutes;
-				var alignedMinutes = Math.Floor(totalMinutes / intervalMinutes) * intervalMinutes;
-				
-				return timestamp.Date.AddMinutes(alignedMinutes);
-			}
-			
-			// For minute intervals, use tick-based alignment
-			var ticks = timestamp.Ticks;
-			var intervalTicks = _interval.Ticks;
-			var alignedTicks = (ticks / intervalTicks) * intervalTicks;
-			return new DateTime(alignedTicks, timestamp.Kind);
+
+			// For sub-day intervals, align within the day
+			var timeOfDay = timestamp.TimeOfDay;
+			var intervalTicks = Interval.Ticks;
+			// Quantized to the nearest interval boundary
+			var intervals = timeOfDay.Ticks / intervalTicks;
+
+			// Total quantized ticks for the aligned time
+			var alignedTicks = intervals * intervalTicks;
+			return timestamp.Date.Add(new TimeSpan(alignedTicks));
 		}
 	}
 }

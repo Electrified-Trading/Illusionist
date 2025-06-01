@@ -1,4 +1,3 @@
-using Illusionist.Core;
 using Illusionist.Core.Catalog;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -10,7 +9,8 @@ namespace Illusionist.CLI.Commands;
 /// Command to generate and display sample OHLCV bars for demonstration purposes.
 /// </summary>
 public sealed class GenerateCommand : Command<GenerateCommand.Settings>
-{	public sealed class Settings : CommandSettings
+{
+	public sealed class Settings : CommandSettings
 	{
 		[CommandOption("-s|--symbol")]
 		[Description("The trading symbol to generate data for")]
@@ -47,11 +47,11 @@ public sealed class GenerateCommand : Command<GenerateCommand.Settings>
 	{
 		AnsiConsole.MarkupLine($"[green]Generating bars for symbol:[/] [yellow]{settings.Symbol}[/]");
 		AnsiConsole.MarkupLine($"[green]Seed:[/] [yellow]{settings.Seed}[/]");
-		AnsiConsole.MarkupLine($"[green]Interval:[/] [yellow]{settings.Interval}[/]");		AnsiConsole.MarkupLine($"[green]Factory type:[/] [yellow]{settings.FactoryType.ToUpperInvariant()}[/]");		AnsiConsole.WriteLine();
+		AnsiConsole.MarkupLine($"[green]Interval:[/] [yellow]{settings.Interval}[/]"); AnsiConsole.MarkupLine($"[green]Factory type:[/] [yellow]{settings.FactoryType.ToUpperInvariant()}[/]"); AnsiConsole.WriteLine();
 
 		var interval = ParseInterval(settings.Interval);
 		var anchor = new BarAnchor(DateTime.UtcNow.Date.AddHours(9), 100.0m); // Default anchor at market open with $100 price
-		// Create schedule from interval
+																			  // Create schedule from interval
 		var scheduleFactory = new DefaultEquitiesScheduleFactory();
 		var schedule = scheduleFactory.GetSchedule(interval);
 
@@ -87,7 +87,7 @@ public sealed class GenerateCommand : Command<GenerateCommand.Settings>
 		return 0;
 	}
 
-	private IBarSeriesFactory CreateFactory(Settings settings)
+	private static IBarSeriesFactory CreateFactory(Settings settings)
 	{
 		return settings.FactoryType.ToLowerInvariant() switch
 		{
@@ -95,6 +95,7 @@ public sealed class GenerateCommand : Command<GenerateCommand.Settings>
 			_ => throw new ArgumentException($"Unsupported factory type: {settings.FactoryType}. Only 'gbm' is currently supported.")
 		};
 	}
+
 	private static BarInterval ParseInterval(string interval)
 	{
 		return interval.ToLowerInvariant() switch
