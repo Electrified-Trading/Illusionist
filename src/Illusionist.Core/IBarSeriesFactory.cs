@@ -4,7 +4,7 @@ namespace Illusionist.Core;
 /// Factory for creating deterministic bar series instances.
 /// Configured with a seed to ensure reproducible data generation.
 /// </summary>
-public interface IBarSeriesFactory
+public interface IBarSeriesFactory<T>
 {
 	/// <summary>
 	/// Creates a bar series with the specified bar interval and anchor point.
@@ -12,5 +12,5 @@ public interface IBarSeriesFactory
 	/// <param name="schedule">The schedule defining valid bars.</param>
 	/// <param name="anchor">The anchor point for bar alignment and pricing reference</param>
 	/// <returns>A deterministic bar series instance</returns>
-	IBarSeries GetSeries(ISchedule schedule, BarAnchor anchor);
+	IBarSeries<T> GetSeries(ISchedule schedule, BarAnchor anchor);
 }

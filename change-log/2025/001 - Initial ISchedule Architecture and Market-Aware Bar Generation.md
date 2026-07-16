@@ -220,3 +220,29 @@ This solid foundation provides the platform for future expansion into global mar
 
 ---
 **Illusionist v1.0 - Initial Implementation Complete** ✅
+
+---
+
+## Erratum — 2026-07-15
+
+This entry is appended, not rewritten. It is factually false in five places, and the record of
+being wrong is preserved rather than edited away — see `AlphaHawk` repo,
+`- Progress Reports/PR009-2026-07-15-Resurrection-Assessment.md` §13, and
+`docs/sprints/SPRINT-02.md` for the fuller history.
+
+| Line | Claim | Measured reality |
+|---|---|---|
+| 4 | `**Status:** ✅ Complete` | The generator did not implement the model it was named for. |
+| 9, 89, 209 | "mathematical rigor through Geometric Brownian Motion (GBM) modeling" / "proper log-normal distribution" | The generator's random term was three fixed-frequency sine waves, bounded and non-cumulative — a stationary series, not a random walk. Setting `volatility: 0` changed nothing; the variance ratio decayed as ~1/k instead of holding near 1; lag-1 autocorrelation measured **-0.50**, the textbook signature of differenced i.i.d. noise. |
+| 42 | "53 Tests Total... 100% pass rate" | True as stated, but every assertion was structural (`High >= Open`, `Volume > 0`, determinism) — not one was distributional. All 53 passed for a generator that failed every statistical property of the model it claimed to implement. |
+| 121 | "zero errors or warnings" | Not a code defect — the build was clean. The claim is listed here because it sat alongside the mathematical claims under one "Quality Metrics" heading, lending them unearned credibility. |
+
+**What actually shipped 2026-07-15:** `GbmBarSeries.Generator` was rewritten around a hash-seeded
+Brownian bridge — deterministic, O(log elapsed time), true random-walk statistics. A statistical
+battery (variance ratio at k=2,4,8,16,32, lag-1 autocorrelation, both against Lo-MacKinlay/Bartlett
+tolerances fixed before the generator existed, plus bar-to-bar continuity and volatility
+parameter-liveness) was added specifically because the 53 tests above could not have caught this
+and, unchanged, still could not. The type name `GbmBarSeries` remains **inaccurate** — a Brownian
+bridge is not GBM — and the rename is deferred: it breaks a live consumer in the parent AlphaHawk
+repo that this submodule's own build cannot see, so renaming here without coordinating there would
+silently reintroduce the class of defect this erratum exists to document.

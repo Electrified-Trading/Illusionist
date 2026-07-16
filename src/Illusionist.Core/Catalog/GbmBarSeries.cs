@@ -1,3 +1,5 @@
+using Electrified.TimeSeries;
+
 namespace Illusionist.Core.Catalog;
 
 /// <summary>
@@ -19,7 +21,7 @@ public sealed partial class GbmBarSeries(
 	ISchedule schedule,
 	BarAnchor anchor,
 	double drift = 0.0001,
-	double volatility = 0.01) : IBarSeries
+	double volatility = 0.01) : IBarSeries<OHLC>
 {
 	private readonly Generator _generator = new(seed + symbol.GetHashCode(), schedule, drift, volatility, anchor);
 
@@ -29,18 +31,18 @@ public sealed partial class GbmBarSeries(
 	/// </summary>
 	/// <param name="timestamp">The timestamp to query</param>
 	/// <returns>The bar for the specified timestamp</returns>
-	public Bar GetBarAt(DateTime timestamp)
+	public Bar<OHLC> GetBarAt(DateTime timestamp)
 	{
 		return _generator.GetBarAt(timestamp);
 	}
-	
+
 	/// <summary>
 	/// Gets an enumerable sequence of bars starting from the specified timestamp.
 	/// Each bar follows GBM price evolution and uses schedule-aware time advancement.
 	/// </summary>
 	/// <param name="start">The starting timestamp</param>
 	/// <returns>An enumerable sequence of bars</returns>
-	public IEnumerable<Bar> GetBars(DateTime start)
+	public IEnumerable<Bar<OHLC>> GetBars(DateTime start)
 	{
 		var current = start;
 		var firstBar = _generator.GetBarAt(current);

@@ -15,7 +15,7 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 	/// </summary>
 	/// <param name="seed">The random seed for deterministic generation</param>
 	/// <returns>A GbmBarSeries factory instance</returns>
-	protected override IBarSeriesFactory CreateFactory(int seed)
+	protected override IBarSeriesFactory<OHLC> CreateFactory(int seed)
 	{
 		return new GbmBarSeries.Factory(DefaultSymbol, seed);
 	}
@@ -26,7 +26,7 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 	/// <param name="seed">The random seed for deterministic generation</param>
 	/// <param name="parameters">Dictionary containing 'drift' or 'volatility' values</param>
 	/// <returns>A GbmBarSeries factory instance with custom parameters</returns>
-	protected override IBarSeriesFactory CreateFactoryWithParameters(int seed, object parameters)
+	protected override IBarSeriesFactory<OHLC> CreateFactoryWithParameters(int seed, object parameters)
 	{
 		if (parameters is not Dictionary<string, double> customParams)
 		{
@@ -116,11 +116,11 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 		var bar = series.GetBarAt(timestamp);
 
 		// Assert
-		Assert.True(bar.High >= bar.Open, "High should be >= Open");
-		Assert.True(bar.High >= bar.Close, "High should be >= Close");
-		Assert.True(bar.Low <= bar.Open, "Low should be <= Open");
-		Assert.True(bar.Low <= bar.Close, "Low should be <= Close");
-		Assert.True(bar.High >= bar.Low, "High should be >= Low");
+		Assert.True(bar.Data.High >= bar.Data.Open, "High should be >= Open");
+		Assert.True(bar.Data.High >= bar.Data.Close, "High should be >= Close");
+		Assert.True(bar.Data.Low <= bar.Data.Open, "Low should be <= Open");
+		Assert.True(bar.Data.Low <= bar.Data.Close, "Low should be <= Close");
+		Assert.True(bar.Data.High >= bar.Data.Low, "High should be >= Low");
 	}	[Fact]
 	public void GetBarAt_PositiveVolume_VolumeIsAlwaysPositive()
 	{
@@ -157,16 +157,16 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 		var bar = series.GetBarAt(timestamp);
 
 		// Assert
-		Assert.True(bar.Open > 0, "Open price should be positive");
-		Assert.True(bar.High > 0, "High price should be positive");
-		Assert.True(bar.Low > 0, "Low price should be positive");
-		Assert.True(bar.Close > 0, "Close price should be positive");
+		Assert.True(bar.Data.Open > 0, "Open price should be positive");
+		Assert.True(bar.Data.High > 0, "High price should be positive");
+		Assert.True(bar.Data.Low > 0, "Low price should be positive");
+		Assert.True(bar.Data.Close > 0, "Close price should be positive");
 
 		// GBM prices should be reasonable (based on exp() function)
-		Assert.True(bar.Open is > 0.01m and < 1000m, "Open price should be in reasonable range");
-		Assert.True(bar.High is > 0.01m and < 1000m, "High price should be in reasonable range");
-		Assert.True(bar.Low is > 0.01m and < 1000m, "Low price should be in reasonable range");
-		Assert.True(bar.Close is > 0.01m and < 1000m, "Close price should be in reasonable range");
+		Assert.True(bar.Data.Open is > 0.01m and < 1000m, "Open price should be in reasonable range");
+		Assert.True(bar.Data.High is > 0.01m and < 1000m, "High price should be in reasonable range");
+		Assert.True(bar.Data.Low is > 0.01m and < 1000m, "Low price should be in reasonable range");
+		Assert.True(bar.Data.Close is > 0.01m and < 1000m, "Close price should be in reasonable range");
 	}	[Fact]
 	public void GetBarAt_CrossRunDeterminism_ReturnsExpectedValues()
 	{
@@ -185,7 +185,7 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 
 		// Assert - These values should be consistent across all runs and platforms
 		// Since we're querying at the anchor timestamp, prices should be near the anchor value
-		Assert.True(bar.Open is > 99.0m and < 101.0m, "Open should be near anchor price");
+		Assert.True(bar.Data.Open is > 99.0m and < 101.0m, "Open should be near anchor price");
 		Assert.True(bar.Volume >= 1000m, "Volume should be at least 1000");
 		Assert.Equal(timestamp, bar.Timestamp);
 	}	[Fact]
@@ -206,7 +206,7 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 		// Assert
 		Assert.Equal(interval, generator.Interval);
 		Assert.Equal(timestamp, bar.Timestamp);
-		Assert.True(bar.High >= bar.Low);
+		Assert.True(bar.Data.High >= bar.Data.Low);
 		Assert.True(bar.Volume > 0);
 	}
 
@@ -225,7 +225,7 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 		var bar = series.GetBarAt(anchor.Timestamp);
 
 		// Assert
-		Assert.Equal(anchor.Value, bar.Open);
+		Assert.Equal(anchor.Value, bar.Data.Open);
 		Assert.Equal(anchor.Timestamp, bar.Timestamp);
 	}
 	[Fact]
@@ -245,8 +245,8 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 		var barOneDayLater = series.GetBarAt(anchor.Timestamp.AddDays(1));
 
 		// Assert
-		Assert.True(barOneDayLater.Open > barAtAnchor.Open, 
-			$"Price should increase with positive drift: {barAtAnchor.Open} -> {barOneDayLater.Open}");
+		Assert.True(barOneDayLater.Data.Open > barAtAnchor.Data.Open, 
+			$"Price should increase with positive drift: {barAtAnchor.Data.Open} -> {barOneDayLater.Data.Open}");
 	}
 	[Fact]
 	public void GetBarAt_OneDayBefore_WithPositiveDrift_ReturnsLowerPrice()
@@ -265,7 +265,7 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 		var barAtAnchor = series.GetBarAt(anchor.Timestamp);
 
 		// Assert
-		Assert.True(barOneDayBefore.Open < barAtAnchor.Open,
-			$"Price should be lower one day before with positive drift: {barOneDayBefore.Open} < {barAtAnchor.Open}");
+		Assert.True(barOneDayBefore.Data.Open < barAtAnchor.Data.Open,
+			$"Price should be lower one day before with positive drift: {barOneDayBefore.Data.Open} < {barAtAnchor.Data.Open}");
 	}
 }

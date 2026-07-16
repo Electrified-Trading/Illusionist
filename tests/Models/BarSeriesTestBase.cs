@@ -13,8 +13,8 @@ public abstract class BarSeriesTestBase
     /// </summary>
     /// <param name="seed">The seed for deterministic generation</param>
     /// <returns>An instance of IBarSeriesFactory</returns>
-    protected abstract IBarSeriesFactory CreateFactory(int seed);
-    
+    protected abstract IBarSeriesFactory<OHLC> CreateFactory(int seed);
+
     /// <summary>
     /// Creates an appropriate IBarSeriesFactory implementation with additional parameters.
     /// Used for testing parameter variations.
@@ -22,7 +22,7 @@ public abstract class BarSeriesTestBase
     /// <param name="seed">The seed for deterministic generation</param>
     /// <param name="parameters">Additional parameters specific to the factory type</param>
     /// <returns>An instance of IBarSeriesFactory</returns>
-    protected virtual IBarSeriesFactory CreateFactoryWithParameters(int seed, object parameters) 
+    protected virtual IBarSeriesFactory<OHLC> CreateFactoryWithParameters(int seed, object parameters)
         => CreateFactory(seed);    /// <summary>
     /// Creates a default BarInterval for testing (1 minute).
     /// </summary>
@@ -132,7 +132,7 @@ public abstract class BarSeriesTestBase
         var schedule = CreateScheduleFromInterval(interval);
         var series = factory.GetSeries(schedule, anchor);        // Act
         var barsFromSeries = series.GetBars(startTime).Take(5).ToList();
-        var barsFromGetBarAt = new List<Bar>();
+        var barsFromGetBarAt = new List<Bar<OHLC>>();
         
         // Use the actual timestamps from the series instead of simple minute progression
         for (int i = 0; i < 5; i++)
@@ -212,11 +212,11 @@ public abstract class BarSeriesTestBase
         // Assert
         Assert.All(bars, bar =>
         {
-            Assert.True(bar.High >= bar.Open, $"High should be >= Open for {bar.Timestamp}");
-            Assert.True(bar.High >= bar.Close, $"High should be >= Close for {bar.Timestamp}");
-            Assert.True(bar.Low <= bar.Open, $"Low should be <= Open for {bar.Timestamp}");
-            Assert.True(bar.Low <= bar.Close, $"Low should be <= Close for {bar.Timestamp}");
-            Assert.True(bar.High >= bar.Low, $"High should be >= Low for {bar.Timestamp}");
+            Assert.True(bar.Data.High >= bar.Data.Open, $"High should be >= Open for {bar.Timestamp}");
+            Assert.True(bar.Data.High >= bar.Data.Close, $"High should be >= Close for {bar.Timestamp}");
+            Assert.True(bar.Data.Low <= bar.Data.Open, $"Low should be <= Open for {bar.Timestamp}");
+            Assert.True(bar.Data.Low <= bar.Data.Close, $"Low should be <= Close for {bar.Timestamp}");
+            Assert.True(bar.Data.High >= bar.Data.Low, $"High should be >= Low for {bar.Timestamp}");
             Assert.True(bar.Volume > 0, $"Volume should be positive for {bar.Timestamp}");
         });
     }
@@ -246,7 +246,7 @@ public abstract class BarSeriesTestBase
         // Assert
         Assert.Equal(timestamp, bar.Timestamp);
         Assert.Equal(5, bars.Count);
-        Assert.All(bars, b => Assert.True(b.High >= b.Low));
+        Assert.All(bars, b => Assert.True(b.Data.High >= b.Data.Low));
         Assert.All(bars, b => Assert.True(b.Volume > 0));        // Check timestamp progression - with schedule-aware advancement
         for (int i = 1; i < bars.Count; i++)
         {

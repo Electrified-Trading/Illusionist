@@ -1,3 +1,5 @@
+using Electrified.TimeSeries;
+
 namespace Illusionist.Core;
 
 /// <summary>
@@ -5,9 +7,9 @@ namespace Illusionist.Core;
 /// </summary>
 public interface IScheduleFactory
 {
-    /// <summary>
-    /// Returns a market schedule for the specified bar interval.
-    /// </summary>
-    /// <param name="interval">The bar interval for which to create the market schedule.</param>
-    ISchedule GetSchedule(BarInterval interval);
+	/// <summary>
+	/// Returns a market schedule for the specified bar interval.
+	/// </summary>
+	/// <param name="interval">The bar interval for which to create the market schedule.</param>
+	ISchedule GetSchedule(BarInterval interval);
 }

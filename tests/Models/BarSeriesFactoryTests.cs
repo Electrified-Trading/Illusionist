@@ -30,10 +30,10 @@ public class BarSeriesFactoryTests
 		for (int i = 0; i < bars1.Length; i++)
 		{
 			Assert.Equal(bars1[i].Timestamp, bars2[i].Timestamp);
-			Assert.Equal(bars1[i].Open, bars2[i].Open);
-			Assert.Equal(bars1[i].High, bars2[i].High);
-			Assert.Equal(bars1[i].Low, bars2[i].Low);
-			Assert.Equal(bars1[i].Close, bars2[i].Close);
+			Assert.Equal(bars1[i].Data.Open, bars2[i].Data.Open);
+			Assert.Equal(bars1[i].Data.High, bars2[i].Data.High);
+			Assert.Equal(bars1[i].Data.Low, bars2[i].Data.Low);
+			Assert.Equal(bars1[i].Data.Close, bars2[i].Data.Close);
 			Assert.Equal(bars1[i].Volume, bars2[i].Volume);
 		}
 	}	[Fact]
@@ -55,7 +55,7 @@ public class BarSeriesFactoryTests
 		var bar2 = series2.GetBarAt(startTime);
 
 		// Assert
-		Assert.NotEqual(bar1.Open, bar2.Open);
+		Assert.NotEqual(bar1.Data.Open, bar2.Data.Open);
 	}	[Theory]
 	[InlineData(1)] // 1 minute
 	[InlineData(5)] // 5 minutes
@@ -77,10 +77,10 @@ public class BarSeriesFactoryTests
 		var startTime = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
 		var bar = series.GetBarAt(startTime);
 
-		Assert.True(bar.High >= bar.Open);
-		Assert.True(bar.High >= bar.Close);
-		Assert.True(bar.Low <= bar.Open);
-		Assert.True(bar.Low <= bar.Close);
+		Assert.True(bar.Data.High >= bar.Data.Open);
+		Assert.True(bar.Data.High >= bar.Data.Close);
+		Assert.True(bar.Data.Low <= bar.Data.Open);
+		Assert.True(bar.Data.Low <= bar.Data.Close);
 		Assert.True(bar.Volume > 0);
 	}
 
@@ -90,18 +90,18 @@ public class BarSeriesFactoryTests
 		return factory.GetSchedule(interval);
 	}
 
-	private static IBarSeriesFactory CreateTestFactory(int seed)
+	private static IBarSeriesFactory<OHLC> CreateTestFactory(int seed)
 	{
 		// TODO: Replace with actual factory implementation when available
-		var factory = Substitute.For<IBarSeriesFactory>();
+		var factory = Substitute.For<IBarSeriesFactory<OHLC>>();
 
 		// For now, return a mock that simulates deterministic behavior
 		factory.GetSeries(Arg.Any<ISchedule>(), Arg.Any<BarAnchor>()).Returns(callInfo =>
 		{
 			var schedule = callInfo.Arg<ISchedule>();
 			// Extract interval from schedule (assuming DefaultEquitiesSchedule)
-			var interval = schedule is DefaultEquitiesSchedule equitiesSchedule 
-				? equitiesSchedule.Interval.Interval 
+			var interval = schedule is DefaultEquitiesSchedule equitiesSchedule
+				? equitiesSchedule.Interval.Interval
 				: TimeSpan.FromMinutes(1); // fallback
 			return CreateTestSeries(seed, interval);
 		});
@@ -109,9 +109,9 @@ public class BarSeriesFactoryTests
 		return factory;
 	}
 
-	private static IBarSeries CreateTestSeries(int seed, TimeSpan interval)
+	private static IBarSeries<OHLC> CreateTestSeries(int seed, TimeSpan interval)
 	{
-		var series = Substitute.For<IBarSeries>();
+		var series = Substitute.For<IBarSeries<OHLC>>();
 		var random = new Random(seed);
 
 		series.GetBarAt(Arg.Any<DateTime>()).Returns(callInfo =>
@@ -129,7 +129,7 @@ public class BarSeriesFactoryTests
 		return series;
 	}
 
-	private static IEnumerable<Bar> GenerateTestBars(DateTime start, TimeSpan interval, Random random)
+	private static IEnumerable<Bar<OHLC>> GenerateTestBars(DateTime start, TimeSpan interval, Random random)
 	{
 		var current = start;
 		for (int i = 0; i < 100; i++) // Generate up to 100 bars for testing
@@ -139,15 +139,15 @@ public class BarSeriesFactoryTests
 		}
 	}
 
-	private static Bar CreateTestBar(DateTime timestamp, Random random)
+	private static Bar<OHLC> CreateTestBar(DateTime timestamp, Random random)
 	{
 		var open = 100m + (decimal)(random.NextDouble() * 20 - 10);
 		var change = (decimal)(random.NextDouble() - 0.5) * 2m;
 		var high = open + Math.Abs(change) + (decimal)random.NextDouble();
 		var low = open - Math.Abs(change) - (decimal)random.NextDouble();
 		var close = open + change;
-		var volume = (decimal)(random.NextDouble() * 10000 + 1000);
+		var volume = (long)(random.NextDouble() * 10000 + 1000);
 
-		return new Bar(timestamp, open, high, low, close, volume);
+		return Bar.Create(timestamp, new OHLC { Open = open, High = high, Low = low, Close = close }, volume);
 	}
 }

@@ -1,10 +1,13 @@
 namespace Illusionist.Tests.Models;
 
 /// <summary>
-/// Tests for the Bar record struct to validate its immutable properties and behavior.
+/// Tests for <see cref="Bar{T}"/> over <see cref="OHLC"/> to validate its immutable properties and behavior.
 /// </summary>
 public class BarTests
 {
+	private static Bar<OHLC> CreateBar(DateTime timestamp, decimal open, decimal high, decimal low, decimal close, decimal volume)
+		=> Bar.Create(timestamp, new OHLC { Open = open, High = high, Low = low, Close = close }, (long)volume);
+
 	[Fact]
 	public void Bar_Constructor_ShouldCreateValidInstance()
 	{
@@ -17,14 +20,14 @@ public class BarTests
 		var volume = 1500m;
 
 		// Act
-		var bar = new Bar(timestamp, open, high, low, close, volume);
+		var bar = CreateBar(timestamp, open, high, low, close, volume);
 
 		// Assert
 		Assert.Equal(timestamp, bar.Timestamp);
-		Assert.Equal(open, bar.Open);
-		Assert.Equal(high, bar.High);
-		Assert.Equal(low, bar.Low);
-		Assert.Equal(close, bar.Close);
+		Assert.Equal(open, bar.Data.Open);
+		Assert.Equal(high, bar.Data.High);
+		Assert.Equal(low, bar.Data.Low);
+		Assert.Equal(close, bar.Data.Close);
 		Assert.Equal(volume, bar.Volume);
 	}
 
@@ -33,9 +36,9 @@ public class BarTests
 	{
 		// Arrange
 		var timestamp = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
-		var bar1 = new Bar(timestamp, 100m, 101m, 99m, 100.5m, 1000m);
-		var bar2 = new Bar(timestamp, 100m, 101m, 99m, 100.5m, 1000m);
-		var bar3 = new Bar(timestamp, 100m, 101m, 99m, 100.6m, 1000m); // Different close
+		var bar1 = CreateBar(timestamp, 100m, 101m, 99m, 100.5m, 1000m);
+		var bar2 = CreateBar(timestamp, 100m, 101m, 99m, 100.5m, 1000m);
+		var bar3 = CreateBar(timestamp, 100m, 101m, 99m, 100.6m, 1000m); // Different close
 
 		// Act & Assert
 		Assert.Equal(bar1, bar2);
@@ -49,8 +52,8 @@ public class BarTests
 	{
 		// Arrange
 		var timestamp = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
-		var bar1 = new Bar(timestamp, 100m, 101m, 99m, 100.5m, 1000m);
-		var bar2 = new Bar(timestamp, 100m, 101m, 99m, 100.5m, 1000m);
+		var bar1 = CreateBar(timestamp, 100m, 101m, 99m, 100.5m, 1000m);
+		var bar2 = CreateBar(timestamp, 100m, 101m, 99m, 100.5m, 1000m);
 
 		// Act & Assert
 		Assert.Equal(bar1.GetHashCode(), bar2.GetHashCode());
@@ -66,18 +69,18 @@ public class BarTests
 		var volume = 1000m;
 
 		// Act
-		var bar = new Bar(timestamp, open, high, low, close, volume);
+		var bar = CreateBar(timestamp, open, high, low, close, volume);
 
 		// Assert
-		Assert.Equal(open, bar.Open);
-		Assert.Equal(high, bar.High);
-		Assert.Equal(low, bar.Low);
-		Assert.Equal(close, bar.Close);
+		Assert.Equal(open, bar.Data.Open);
+		Assert.Equal(high, bar.Data.High);
+		Assert.Equal(low, bar.Data.Low);
+		Assert.Equal(close, bar.Data.Close);
 
 		// Verify OHLC constraints (these would typically be enforced by the generator)
-		Assert.True(bar.High >= bar.Open, "High should be >= Open");
-		Assert.True(bar.High >= bar.Close, "High should be >= Close");
-		Assert.True(bar.Low <= bar.Open, "Low should be <= Open");
-		Assert.True(bar.Low <= bar.Close, "Low should be <= Close");
+		Assert.True(bar.Data.High >= bar.Data.Open, "High should be >= Open");
+		Assert.True(bar.Data.High >= bar.Data.Close, "High should be >= Close");
+		Assert.True(bar.Data.Low <= bar.Data.Open, "Low should be <= Open");
+		Assert.True(bar.Data.Low <= bar.Data.Close, "Low should be <= Close");
 	}
 }

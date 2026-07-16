@@ -1,7 +1,9 @@
+using Electrified.TimeSeries;
+
 namespace Illusionist.Core.Catalog;
 
 public sealed partial class GbmBarSeries
-{	/// <summary>
+{   /// <summary>
 	/// Factory for creating GBM-based bar series instances with deterministic behavior.
 	/// Uses Geometric Brownian Motion to simulate realistic market price evolution.
 	/// </summary>
@@ -12,16 +14,17 @@ public sealed partial class GbmBarSeries
 	/// <param name="seed">The random seed for deterministic generation</param>
 	/// <param name="drift">The drift parameter for GBM (annual growth rate)</param>
 	/// <param name="volatility">The volatility parameter for GBM (annual volatility)</param>
-	public sealed class Factory(string symbol, int seed, double drift = 0.0001, double volatility = 0.01) : IBarSeriesFactory
-	{	/// <summary>
-	/// Creates a GBM bar series with the specified schedule and anchor point.
-	/// </summary>
-	/// <param name="schedule">The schedule defining valid bars</param>
-	/// <param name="anchor">The anchor point for bar alignment and pricing reference</param>
-	/// <returns>A deterministic GBM bar series instance</returns>
-	public IBarSeries GetSeries(ISchedule schedule, BarAnchor anchor)
+	public sealed class Factory(string symbol, int seed, double drift = 0.0001, double volatility = 0.01) : IBarSeriesFactory<OHLC>
 	{
-		return new GbmBarSeries(symbol, seed, schedule, anchor, drift, volatility);
-	}
+		/// <summary>
+		/// Creates a GBM bar series with the specified schedule and anchor point.
+		/// </summary>
+		/// <param name="schedule">The schedule defining valid bars</param>
+		/// <param name="anchor">The anchor point for bar alignment and pricing reference</param>
+		/// <returns>A deterministic GBM bar series instance</returns>
+		public IBarSeries<OHLC> GetSeries(ISchedule schedule, BarAnchor anchor)
+		{
+			return new GbmBarSeries(symbol, seed, schedule, anchor, drift, volatility);
+		}
 	}
 }

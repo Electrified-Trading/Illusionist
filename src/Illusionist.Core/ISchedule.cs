@@ -1,3 +1,5 @@
+using Electrified.TimeSeries;
+
 namespace Illusionist.Core;
 
 public interface ISchedule
