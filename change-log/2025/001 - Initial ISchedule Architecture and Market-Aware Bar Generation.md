@@ -223,7 +223,7 @@ This solid foundation provides the platform for future expansion into global mar
 
 ---
 
-## Erratum — 2026-07-15
+## Erratum — 2026-07-16
 
 This entry is appended, not rewritten. It is factually false in five places, and the record of
 being wrong is preserved rather than edited away — see `AlphaHawk` repo,
@@ -237,7 +237,7 @@ being wrong is preserved rather than edited away — see `AlphaHawk` repo,
 | 42 | "53 Tests Total... 100% pass rate" | True as stated, but every assertion was structural (`High >= Open`, `Volume > 0`, determinism) — not one was distributional. All 53 passed for a generator that failed every statistical property of the model it claimed to implement. |
 | 121 | "zero errors or warnings" | Not a code defect — the build was clean. The claim is listed here because it sat alongside the mathematical claims under one "Quality Metrics" heading, lending them unearned credibility. |
 
-**What actually shipped 2026-07-15:** `GbmBarSeries.Generator` was rewritten around a hash-seeded
+**What actually shipped 2026-07-16:** `GbmBarSeries.Generator` was rewritten around a hash-seeded
 Brownian bridge — deterministic, O(log elapsed time), true random-walk statistics. A statistical
 battery (variance ratio at k=2,4,8,16,32, lag-1 autocorrelation, both against Lo-MacKinlay/Bartlett
 tolerances fixed before the generator existed, plus bar-to-bar continuity and volatility
