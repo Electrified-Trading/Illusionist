@@ -188,7 +188,58 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 		Assert.True(bar.Data.Open is > 99.0m and < 101.0m, "Open should be near anchor price");
 		Assert.True(bar.Volume >= 1000m, "Volume should be at least 1000");
 		Assert.Equal(timestamp, bar.Timestamp);
-	}	[Fact]
+	}
+
+	/// <summary>
+	/// Task 10-0021: <see cref="GbmBarSeries"/> derives its generator seed from
+	/// <c>seed</c> combined with a deterministic hash of <c>symbol</c> (previously
+	/// <c>seed + symbol.GetHashCode()</c>, which is randomized per .NET 5+ process, so the
+	/// same (seed, symbol) pair silently produced a different price path in every process
+	/// launch). Unlike <see cref="GetBarAt_CrossRunDeterminism_ReturnsExpectedValues"/> above,
+	/// which only checks the result is plausible, this pins the exact bar values so any
+	/// regression — reverting to <see cref="string.GetHashCode()"/>, or any change to the
+	/// deterministic hash algorithm itself — fails this single in-process assertion, with no
+	/// process boundary required. Expected values were captured by actually executing this
+	/// exact (symbol, seed, anchor, schedule) combination through the fixed generator — not
+	/// hand-derived — and confirmed identical across two separate process launches of a
+	/// throwaway harness before being pinned here as literals.
+	/// </summary>
+	[Fact]
+	public void GetBarAt_KnownSeedAndSymbol_ProducesPinnedLiteralValues()
+	{
+		// Arrange
+		const string symbol = "SYNTH";
+		const int seed = 12345;
+		var anchor = CreateDefaultAnchor();
+		var schedule = CreateScheduleFromInterval(CreateDefaultInterval());
+
+		var factory = new GbmBarSeries.Factory(symbol, seed);
+		var series = factory.GetSeries(schedule, anchor);
+
+		// Act
+		var bars = series.GetBars(anchor.Timestamp).Take(3).ToList();
+
+		// Assert
+		Assert.Equal(100.0m, bars[0].Data.Open);
+		Assert.Equal(100.1080899586707611m, bars[0].Data.High);
+		Assert.Equal(99.938716547398239m, bars[0].Data.Low);
+		Assert.Equal(100.056784754997000m, bars[0].Data.Close);
+		Assert.Equal(1883m, bars[0].Volume);
+
+		Assert.Equal(100.056784754997000m, bars[1].Data.Open);
+		Assert.Equal(100.05827998729774509m, bars[1].Data.High);
+		Assert.Equal(100.05371024578029872m, bars[1].Data.Low);
+		Assert.Equal(100.054722991879000m, bars[1].Data.Close);
+		Assert.Equal(6032m, bars[1].Volume);
+
+		Assert.Equal(100.054722991879000m, bars[2].Data.Open);
+		Assert.Equal(100.05750391281702544m, bars[2].Data.High);
+		Assert.Equal(100.053912446996841636m, bars[2].Data.Low);
+		Assert.Equal(100.055974647535000m, bars[2].Data.Close);
+		Assert.Equal(2959m, bars[2].Volume);
+	}
+
+	[Fact]
 	public void Generator_DirectAccess_WorksCorrectly()
 	{
 		// Arrange

@@ -23,7 +23,30 @@ public sealed partial class GbmBarSeries(
 	double drift = 0.0001,
 	double volatility = 0.01) : IBarSeries<OHLC>
 {
-	private readonly Generator _generator = new(seed + symbol.GetHashCode(), schedule, drift, volatility, anchor);
+	private readonly Generator _generator = new(seed + GetDeterministicHashCode(symbol), schedule, drift, volatility, anchor);
+
+	/// <summary>
+	/// Computes a deterministic hash code for a string that is stable across .NET processes.
+	/// Unlike <see cref="string.GetHashCode()"/>, which is randomized per-process in .NET 5+,
+	/// this uses DJB2 to produce a consistent hash.
+	/// </summary>
+	/// <remarks>
+	/// Mirrors <c>AlphaHawk.Data.Fake.FakeSymbolDataSource.GetDeterministicHashCode</c> exactly
+	/// (same DJB2 algorithm) so both codebases derive symbol seeds the same reproducible way.
+	/// Duplicated rather than shared because <c>Illusionist.Core</c> is a separate git submodule
+	/// with no dependency on <c>AlphaHawk.Data</c>.
+	/// </remarks>
+	private static int GetDeterministicHashCode(string value)
+	{
+		unchecked
+		{
+			int hash = 5381;
+			foreach (char c in value)
+				hash = ((hash << 5) + hash) + c;
+
+			return hash;
+		}
+	}
 
 	/// <summary>
 	/// Gets the bar that contains or immediately precedes the specified timestamp.
