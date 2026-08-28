@@ -1,0 +1,25 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Testing -->
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.0" />
+    <PackageVersion Include="Verify.Xunit" Version="30.1.0" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.0" />
+    <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+    <PackageVersion Include="NSubstitute" Version="5.3.0" />
+    <!-- Not a direct PackageReference of any Illusionist project: pinned only because
+         AlphaHawk's root Directory.Packages.props pins it (for bunit's net9.0 floor,
+         unrelated to Illusionist) and central transitive pinning applies that pin to
+         every project the root file governs, including this one, today. This file
+         becomes the nearest-ancestor CPM file for shared/Illusionist/ even inside the
+         AlphaHawk build, so omitting this entry would silently drop the transitive
+         resolution of Microsoft.Extensions.Primitives from 9.0.11 down to 9.0.0.
+         Verified via `dotnet list package` with transitive packages included, before/after.
+         Kept to preserve exact parity; see task 25-0020. -->
+    <PackageVersion Include="Microsoft.Extensions.Primitives" Version="9.0.11" />
+  </ItemGroup>
+</Project>
