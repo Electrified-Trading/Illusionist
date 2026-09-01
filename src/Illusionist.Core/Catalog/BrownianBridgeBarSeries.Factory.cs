@@ -2,7 +2,7 @@ using Electrified.TimeSeries;
 
 namespace Illusionist.Core.Catalog;
 
-public sealed partial class GbmBarSeries
+public sealed partial class BrownianBridgeBarSeries
 {   /// <summary>
 	/// Factory for creating GBM-based bar series instances with deterministic behavior.
 	/// Uses Geometric Brownian Motion to simulate realistic market price evolution.
@@ -24,7 +24,7 @@ public sealed partial class GbmBarSeries
 		/// <returns>A deterministic GBM bar series instance</returns>
 		public IBarSeries<OHLC> GetSeries(ISchedule schedule, BarAnchor anchor)
 		{
-			return new GbmBarSeries(symbol, seed, schedule, anchor, drift, volatility);
+			return new BrownianBridgeBarSeries(symbol, seed, schedule, anchor, drift, volatility);
 		}
 	}
 }

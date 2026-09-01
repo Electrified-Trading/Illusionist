@@ -2,7 +2,7 @@ using Electrified.TimeSeries;
 
 namespace Illusionist.Core.Catalog;
 
-public sealed partial class GbmBarSeries
+public sealed partial class BrownianBridgeBarSeries
 {
 	/// <summary>
 	/// Generates deterministic bars using a hash-seeded Brownian bridge.

@@ -12,7 +12,7 @@ public class PriceDebug
         var anchor = new BarAnchor(new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc), 100.0m);
         var timestamp = new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc);
 
-        var factory = new GbmBarSeries.Factory("AAPL", seed);
+        var factory = new BrownianBridgeBarSeries.Factory("AAPL", seed);
         var series = factory.GetSeries(interval, anchor);
         var bar = series.GetBarAt(timestamp);
 

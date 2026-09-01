@@ -91,7 +91,7 @@ public sealed class GenerateCommand : Command<GenerateCommand.Settings>
 	{
 		return settings.FactoryType.ToLowerInvariant() switch
 		{
-			"gbm" => new GbmBarSeries.Factory(settings.Symbol, settings.Seed, settings.Drift, settings.Volatility),
+			"gbm" => new BrownianBridgeBarSeries.Factory(settings.Symbol, settings.Seed, settings.Drift, settings.Volatility),
 			_ => throw new ArgumentException($"Unsupported factory type: {settings.FactoryType}. Only 'gbm' is currently supported.")
 		};
 	}

@@ -3,29 +3,29 @@ using Illusionist.Core.Catalog;
 namespace Illusionist.Tests.Models;
 
 /// <summary>
-/// Tests for GbmBarSeries implementations to ensure deterministic behavior
+/// Tests for BrownianBridgeBarSeries implementations to ensure deterministic behavior
 /// and correct Geometric Brownian Motion characteristics.
 /// </summary>
-public class GbmBarSeriesTests : BarSeriesTestBase
+public class BrownianBridgeBarSeriesTests : BarSeriesTestBase
 {
 	private const string DefaultSymbol = "AAPL";
 
 	/// <summary>
-	/// Creates a GbmBarSeries.Factory with the specified seed.
+	/// Creates a BrownianBridgeBarSeries.Factory with the specified seed.
 	/// </summary>
 	/// <param name="seed">The random seed for deterministic generation</param>
-	/// <returns>A GbmBarSeries factory instance</returns>
+	/// <returns>A BrownianBridgeBarSeries factory instance</returns>
 	protected override IBarSeriesFactory<OHLC> CreateFactory(int seed)
 	{
-		return new GbmBarSeries.Factory(DefaultSymbol, seed);
+		return new BrownianBridgeBarSeries.Factory(DefaultSymbol, seed);
 	}
 
 	/// <summary>
-	/// Creates a GbmBarSeries.Factory with the specified seed and parameters.
+	/// Creates a BrownianBridgeBarSeries.Factory with the specified seed and parameters.
 	/// </summary>
 	/// <param name="seed">The random seed for deterministic generation</param>
 	/// <param name="parameters">Dictionary containing 'drift' or 'volatility' values</param>
-	/// <returns>A GbmBarSeries factory instance with custom parameters</returns>
+	/// <returns>A BrownianBridgeBarSeries factory instance with custom parameters</returns>
 	protected override IBarSeriesFactory<OHLC> CreateFactoryWithParameters(int seed, object parameters)
 	{
 		if (parameters is not Dictionary<string, double> customParams)
@@ -46,7 +46,7 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 			volatility = volValue;
 		}
 
-		return new GbmBarSeries.Factory(DefaultSymbol, seed, drift, volatility);
+		return new BrownianBridgeBarSeries.Factory(DefaultSymbol, seed, drift, volatility);
 	}
 	[Fact]
 	public void GetBarAt_DifferentDriftParameters_ProducesDifferentResults()
@@ -191,7 +191,7 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 	}
 
 	/// <summary>
-	/// Task 10-0021: <see cref="GbmBarSeries"/> derives its generator seed from
+	/// Task 10-0021: <see cref="BrownianBridgeBarSeries"/> derives its generator seed from
 	/// <c>seed</c> combined with a deterministic hash of <c>symbol</c> (previously
 	/// <c>seed + symbol.GetHashCode()</c>, which is randomized per .NET 5+ process, so the
 	/// same (seed, symbol) pair silently produced a different price path in every process
@@ -213,7 +213,7 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 		var anchor = CreateDefaultAnchor();
 		var schedule = CreateScheduleFromInterval(CreateDefaultInterval());
 
-		var factory = new GbmBarSeries.Factory(symbol, seed);
+		var factory = new BrownianBridgeBarSeries.Factory(symbol, seed);
 		var series = factory.GetSeries(schedule, anchor);
 
 		// Act
@@ -249,7 +249,7 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 		var anchor = new BarAnchor(new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc), 100.0m);
 
 		var schedule = CreateScheduleFromInterval(BarInterval.Minute(1));
-		var generator = new GbmBarSeries.Generator(seed, schedule, 0.0001, 0.01, anchor);
+		var generator = new BrownianBridgeBarSeries.Generator(seed, schedule, 0.0001, 0.01, anchor);
 
 		// Act
 		var bar = generator.GetBarAt(timestamp);
@@ -287,7 +287,7 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 		var interval = CreateDefaultInterval();		var anchor = new BarAnchor(new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc), 100.0m);
 		
 		// Use higher drift (50% annual) and lower volatility to make drift effect visible over one day
-		var factory = new GbmBarSeries.Factory("AAPL", seed, drift: 0.5, volatility: 0.001);
+		var factory = new BrownianBridgeBarSeries.Factory("AAPL", seed, drift: 0.5, volatility: 0.001);
 		var schedule = CreateScheduleFromInterval(interval);
 		var series = factory.GetSeries(schedule, anchor);
 
@@ -307,7 +307,7 @@ public class GbmBarSeriesTests : BarSeriesTestBase
 		var interval = CreateDefaultInterval();		var anchor = new BarAnchor(new DateTime(2025, 1, 1, 9, 0, 0, DateTimeKind.Utc), 100.0m);
 		
 		// Use higher drift (50% annual) and lower volatility to make drift effect visible over one day
-		var factory = new GbmBarSeries.Factory("AAPL", seed, drift: 0.5, volatility: 0.001);
+		var factory = new BrownianBridgeBarSeries.Factory("AAPL", seed, drift: 0.5, volatility: 0.001);
 		var schedule = CreateScheduleFromInterval(interval);
 		var series = factory.GetSeries(schedule, anchor);
 

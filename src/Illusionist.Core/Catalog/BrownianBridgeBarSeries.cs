@@ -7,7 +7,7 @@ namespace Illusionist.Core.Catalog;
 /// to provide realistic price evolution with log-normal growth characteristics.
 /// </summary>
 /// <remarks>
-/// Initializes a new instance of the <see cref="GbmBarSeries"/> class.
+/// Initializes a new instance of the <see cref="BrownianBridgeBarSeries"/> class.
 /// </remarks>
 /// <param name="symbol">The trading symbol for this series</param>
 /// <param name="seed">The random seed for deterministic generation</param>
@@ -15,7 +15,7 @@ namespace Illusionist.Core.Catalog;
 /// <param name="anchor">The anchor point for time and price reference</param>
 /// <param name="drift">The drift parameter for GBM (default: 0.0001)</param>
 /// <param name="volatility">The volatility parameter for GBM (default: 0.01)</param>
-public sealed partial class GbmBarSeries(
+public sealed partial class BrownianBridgeBarSeries(
 	string symbol,
 	int seed,
 	ISchedule schedule,
