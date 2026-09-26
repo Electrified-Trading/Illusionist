@@ -1,0 +1,5 @@
+# Golden fixture bytes must check out identically on every machine
+# regardless of core.autocrlf -- a CRLF conversion on checkout would silently break
+# GeneratorGoldenTests's byte-for-byte comparison against BrownianBridgeBarSeries's
+# own LF-only output.
+tests/Golden/Fixtures/*.csv text eol=lf

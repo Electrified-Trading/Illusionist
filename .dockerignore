@@ -1,0 +1,6 @@
+**/bin
+**/obj
+.git
+tests/
+change-log/
+logo.png

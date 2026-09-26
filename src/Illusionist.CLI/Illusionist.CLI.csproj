@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <LangVersion>preview</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -11,12 +11,23 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Spectre.Console" Version="0.49.1" />
-    <PackageReference Include="Spectre.Console.Cli" Version="0.49.1" />
+    <PackageReference Include="Spectre.Console" />
+    <PackageReference Include="Spectre.Console.Cli" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Illusionist.Core\Illusionist.Core.csproj" />
+  </ItemGroup>
+
+  <!-- Same sibling/package split as Illusionist.Core.csproj (see Directory.Build.props):
+       explicit here too, not relying on transitivity through Illusionist.Core, since a
+       standalone build has no sibling for either project to transit. -->
+  <ItemGroup Condition="'$(IllusionistUsePackageReferences)' != 'true'">
+    <ProjectReference Include="$(IllusionistElectrifiedTimeSeriesSiblingPath)" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(IllusionistUsePackageReferences)' == 'true'">
+    <PackageReference Include="Electrified.TimeSeries" />
   </ItemGroup>
 
 </Project>

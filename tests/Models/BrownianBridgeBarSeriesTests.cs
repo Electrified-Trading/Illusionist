@@ -191,7 +191,7 @@ public class BrownianBridgeBarSeriesTests : BarSeriesTestBase
 	}
 
 	/// <summary>
-	/// Task 10-0021: <see cref="BrownianBridgeBarSeries"/> derives its generator seed from
+	/// <see cref="BrownianBridgeBarSeries"/> derives its generator seed from
 	/// <c>seed</c> combined with a deterministic hash of <c>symbol</c> (previously
 	/// <c>seed + symbol.GetHashCode()</c>, which is randomized per .NET 5+ process, so the
 	/// same (seed, symbol) pair silently produced a different price path in every process

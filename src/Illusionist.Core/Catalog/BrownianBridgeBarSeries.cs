@@ -31,10 +31,10 @@ public sealed partial class BrownianBridgeBarSeries(
 	/// this uses DJB2 to produce a consistent hash.
 	/// </summary>
 	/// <remarks>
-	/// Mirrors <c>AlphaHawk.Data.Fake.FakeSymbolDataSource.GetDeterministicHashCode</c> exactly
-	/// (same DJB2 algorithm) so both codebases derive symbol seeds the same reproducible way.
-	/// Duplicated rather than shared because <c>Illusionist.Core</c> is a separate git submodule
-	/// with no dependency on <c>AlphaHawk.Data</c>.
+	/// DJB2 (Bernstein hash) computed over the string's UTF-16 <c>char</c> values, not
+	/// <see cref="string.GetHashCode()"/> or any platform-specific byte encoding -- the same DJB2
+	/// variant, applied to the same <c>char</c> sequence, produces the same integer on any .NET
+	/// process, on any machine, forever.
 	/// </remarks>
 	private static int GetDeterministicHashCode(string value)
 	{

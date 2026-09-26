@@ -226,9 +226,8 @@ This solid foundation provides the platform for future expansion into global mar
 ## Erratum — 2026-07-16
 
 This entry is appended, not rewritten. It is factually false in five places, and the record of
-being wrong is preserved rather than edited away — see `AlphaHawk` repo,
-`- Progress Reports/PR009-2026-07-15-Resurrection-Assessment.md` §13, and
-`docs/sprints/SPRINT-02.md` for the fuller history.
+being wrong is preserved rather than edited away — see an earlier independent review for the
+fuller history.
 
 | Line | Claim | Measured reality |
 |---|---|---|
@@ -243,6 +242,6 @@ battery (variance ratio at k=2,4,8,16,32, lag-1 autocorrelation, both against Lo
 tolerances fixed before the generator existed, plus bar-to-bar continuity and volatility
 parameter-liveness) was added specifically because the 53 tests above could not have caught this
 and, unchanged, still could not. The type name `GbmBarSeries` remains **inaccurate** — a Brownian
-bridge is not GBM — and the rename is deferred: it breaks a live consumer in the parent AlphaHawk
-repo that this submodule's own build cannot see, so renaming here without coordinating there would
-silently reintroduce the class of defect this erratum exists to document.
+bridge is not GBM — and the rename is deferred: it breaks a live downstream consumer that this
+repository's own build cannot see, so renaming here without coordinating there would silently
+reintroduce the class of defect this erratum exists to document.
