@@ -71,7 +71,7 @@ required; the defaults reproduce the reference series exactly.
 
 | Parameter | Default | Range | Meaning |
 |---|---|---|---|
-| `generator` | *(required)* | | Generator and version, e.g. `brownian-bridge@1`. Always explicit: a version's output never changes. |
+| `generator` | *(required)* | `brownian-bridge@1`, `brownian-bridge@2` | Generator and version. Always explicit: a version's output never changes. `@2` is the same model as `@1`, computed with a platform-independent math core (see [Reproducibility](#reproducibility)); prefer it unless you specifically need `@1`'s pinned bytes. |
 | `seed` | *(required)* | any 32-bit integer | Different seeds give independent paths. |
 | `seedMode` | `bare` | `bare`, `symbol-hashed` | `bare`: the seed alone picks the path. `symbol-hashed`: the seed is combined with a hash of `symbol`. |
 | `symbol` | | | A label hashed into the seed (`symbol-hashed` only). Not a lookup: the output has nothing to do with the real instrument. |
@@ -106,32 +106,49 @@ described by:
 ```
 
 Every parameter that changes the output is in that tuple. When the algorithm changes in a way that
-alters output, it gets a new version number (`brownian-bridge@2`), so old results stay reproducible
-forever. Committed golden fixtures (`tests/Golden/`) pin the current version's output byte for byte.
+alters output, it gets a new version number, so old results stay reproducible forever. Committed
+golden fixtures (`tests/Golden/`) pin each version's output byte for byte.
 
-**How far "byte-identical" reaches, stated honestly.** The generator uses floating-point functions
-(`exp`, `log`, `cos`, `sqrt`) that call the platform's C math library: UCRT on Windows, glibc on
-Linux. Different libraries are not guaranteed to round identically at the last bit. So the golden
-fixtures are **verified on x64 Windows with .NET 10**. Another operating system, CPU architecture or
-.NET major version is **unverified until the self-check passes there**. That is exactly what the
-self-check is for.
+**How far "byte-identical" reaches, stated honestly -- and why there are two versions.**
+`brownian-bridge@1`'s Gaussian draws use `Math.Exp`, `Math.Log` and `Math.Cos`, which call the
+platform's own C math library: UCRT on Windows, glibc on Linux. Different libraries are not
+guaranteed to round identically at the last bit, and in practice do not: two of `@1`'s ten golden
+cases measured differently on x64 Linux than on the x64 Windows host they were pinned on. So `@1`'s
+golden fixtures are **verified on x64 Windows with .NET 10 only** -- its declared *reference
+platform* -- and unverified anywhere else.
+
+`brownian-bridge@2` is the identical model (same parameters, same algorithm) with its transcendental
+math replaced by [`DeterministicMath`](src/Illusionist.Core/Numerics), a from-scratch `log`/`exp`/`cos`
+built only from `+`, `-`, `*`, `/`, `sqrt` (IEEE-754-mandated correctly rounded on every conforming
+platform) and exact bit manipulation -- never a call into the platform's own math library. `@2` has
+no reference platform: it is expected to reproduce its own golden fixtures on any host, any CPU
+architecture, any .NET major version, and its own self-check cases are the proof for a given host,
+the same as `@1`'s. `@1` is never edited to fix this -- an existing version's output never changes --
+so it stays exactly as published and `@2` is a new, independent registration. Prefer `@2` unless you
+specifically depend on `@1`'s pinned bytes.
 
 ### The self-check
 
-On startup, and on every `GET /healthz`, the service regenerates ten readiness cases and compares
-them with pinned SHA-256 hashes:
+On startup, and on every `GET /healthz`, the service regenerates ten readiness cases per registered
+version and compares them with pinned SHA-256 hashes:
 - the six golden fixtures;
 - four more cases that each vary one thing the six never do (a date range, a JSON body, a
   non-default drift, a different anchor date).
 
-A host that cannot reproduce them stays up, so its failure report is readable at `/healthz`, but it
-refuses series requests with `not_ready`. To check a host without starting the web server:
+A version with a declared reference platform (only `@1`, today) is held to its own cases **only on
+that platform**: elsewhere, a mismatch is reported honestly in the JSON but does not block
+readiness, and any `@1` series response served from a non-reference host carries a `platform`
+warning saying so. A version with no reference platform (`@2`) is held to its cases on every host.
+The overall `status` is `ready` only when every case that is being held counts as a pass; a host that
+cannot reproduce them stays up, so its failure report is readable at `/healthz`, but it refuses
+series requests with `not_ready`. To check a host without starting the web server:
 
 ```bash
 dotnet Illusionist.Service.dll --self-check
 ```
 
-It prints the report as JSON and exits 0 on a pass, 1 on a failure.
+It prints the report as JSON (each case's `referencePlatform` and `countsTowardReadiness` fields
+say whether it is being held on this host) and exits 0 on a pass, 1 on a failure.
 
 ## Running the service
 
@@ -152,12 +169,20 @@ front of it (for example, a reverse proxy). Logs are structured JSON on stdout.
 
 ## How it works
 
-`brownian-bridge@1` simulates a **geometric Brownian motion** price path. Gaussian increments are
-fixed at power-of-two "checkpoint" times from a deterministic hash, then bisected down to the exact
-bar time by midpoint displacement: the standard, exact way to sample one path of a Wiener process.
-Each bar costs O(log elapsed time) and needs no state, so any bar at any time can be requested
-directly, in any order. Highs and lows are a deliberate simplification: a volatility-scaled spread
-around the bar's open, midpoint and close, not a draw from the exact extremum distribution.
+`brownian-bridge@1` and `@2` simulate a **geometric Brownian motion** price path. Gaussian increments
+are fixed at power-of-two "checkpoint" times from a deterministic hash, then bisected down to the
+exact bar time by midpoint displacement: the standard, exact way to sample one path of a Wiener
+process. Each bar costs O(log elapsed time) and needs no state, so any bar at any time can be
+requested directly, in any order. Highs and lows are a deliberate simplification: a volatility-scaled
+spread around the bar's open, midpoint and close, not a draw from the exact extremum distribution.
+
+The two versions differ only in how the Gaussian draw's `log`, `exp` and `cos` are computed: `@1`
+calls `System.Math`; `@2` calls its own `DeterministicMath`, a from-scratch implementation built only
+from IEEE-754-exact primitives (see [Reproducibility](#reproducibility)). `DeterministicMath` follows
+the public-domain-adjacent `fdlibm` (Sun Microsystems, 1993) design most platform math libraries are
+themselves derived from, but derives its own constants (`pi`, `ln2`) from exact
+`System.Numerics.BigInteger` arithmetic (Machin's formula) rather than reusing `fdlibm`'s own
+hardcoded tables.
 
 Structural checks (well-formed OHLC, determinism) are not enough on their own. An earlier generator
 passed dozens of them while producing nothing like a random walk. `tests/Statistics/` checks the
@@ -189,10 +214,19 @@ instead (see `Directory.Build.props`).
 
 - **The holiday calendar covers 2024–2025 only.** Outside those years, weekends are still skipped,
   but real U.S. market holidays are treated as trading days.
-- **Daily bars only** in `brownian-bridge@1`.
-- **Byte-identity beyond x64 Windows / .NET 10 is unverified** until the self-check passes on that
-  host (see [Reproducibility](#reproducibility)).
+- **Daily bars only**, in both `brownian-bridge@1` and `@2`.
+- **`brownian-bridge@1`'s byte-identity beyond x64 Windows / .NET 10 is unverified** until the
+  self-check passes on that host (see [Reproducibility](#reproducibility)); on such a host its
+  series responses carry a `platform` warning and its own golden cases do not gate readiness.
+  `brownian-bridge@2` has no such limitation by construction, though "by construction" is only as
+  good as this repository's own tests -- its self-check still gates readiness on every host.
 
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+`src/Illusionist.Core/Numerics/DeterministicMath` follows the design of `fdlibm` ("Freely
+Distributable LIBM", Copyright (C) 1993 by Sun Microsystems, Inc.), whose own notice permits use and
+redistribution provided it is preserved -- compatible with this repository's MIT license, and
+reproduced in full in that folder's own class remarks. No `fdlibm` source or numeric constant is
+copied; only its algorithmic structure is followed (see [How it works](#how-it-works)).
