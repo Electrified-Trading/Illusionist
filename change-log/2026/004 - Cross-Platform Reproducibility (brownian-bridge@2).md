@@ -90,24 +90,29 @@ verified on x64 Windows.
 
 - `dotnet build Illusionist.sln -c Release`: 0 warnings, 0 errors (five projects).
 - `dotnet test` (both `Illusionist.Tests` and `Illusionist.Service.Tests`, TRX-logged, judged by exit
-  code and TRX outcome counts): **148/148** and **118/118**, exit code 0 both times.
+  code and TRX outcome counts): **148/148** and **122/122**, exit code 0 both times.
 - `dotnet run --project src/Illusionist.Service -- --self-check` on this Windows x64 host: 20/20
   cases match (both `@1` and `@2`), `status: ready`, exit 0.
-- **Not run here (no Docker in this environment):** the Linux self-check this change exists to fix.
-  On the operator's Ubuntu host: `docker build --platform linux/amd64 -t illusionist:local .` then
-  `docker run --rm illusionist:local --self-check`. Expect `brownian-bridge@2`'s 10 cases to match
-  (their `countsTowardReadiness` is `true` everywhere); `brownian-bridge@1`'s 10 cases are expected to
-  still show the same 2 mismatches measured before this change, now with `countsTowardReadiness:
-  false` and `referencePlatform: "windows-x64"` -- and the overall `status` should read `ready`
-  because only `@2`'s cases (plus `@1`'s 8 that do match) gate it. Exit code 0 is the pass signal, not
-  "every case matches."
+- **Linux, measured by the operator** on Ubuntu 24.04.5 (linux-x64, .NET 10.0.12), image built from
+  this branch (`docker build --platform linux/amd64`, then `--self-check`): exit 0, `status: ready`.
+  All 10 `brownian-bridge@2` cases match the fixtures generated on Windows, bit for bit, with
+  `countsTowardReadiness: true`. All 10 `brownian-bridge@1` cases carry `referencePlatform:
+  "windows-x64"` and `countsTowardReadiness: false` there, and still show the same 2 mismatches
+  measured before this change; on a non-reference host none of `@1`'s cases gate readiness, so only
+  `@2`'s decide it. Exit code 0 is the pass signal, not "every case matches."
+- Every `@2` price passes through `(decimal)DeterministicMath.Exp(...)`, so that Linux match also
+  shows the `double` to `decimal` conversion agreeing across the two platforms for every input the
+  fixtures exercise.
+- A review measured, on x64 with FMA hardware, that the JIT does not fuse `a * b + c`: 2,000,000
+  trials of that expression against `Math.FusedMultiplyAdd` on operands chosen to expose the
+  difference never agreed once.
 
 ## UNVERIFIED
 
-- That .NET's JIT never contracts `a * b + c` into a fused multiply-add for ordinary arithmetic
-  (stated in `DeterministicMath`'s own class remarks, reasoned from .NET Core 3.0's documented move
-  to strict IEEE-754 floating-point semantics) -- no network access in this environment to cite the
-  exact specification. `Math.FusedMultiplyAdd` is never called anywhere in this file regardless.
-- Whether `System.Numerics.BigInteger`'s built-in explicit conversion to `double` is guaranteed
-  bit-identical across every .NET platform. It is pure managed code (not a native call), which is
-  the relevant property here, but this was not verified against a specification either.
+- That the JIT never fuses `a * b + c` on ARM64, a different code generator: measured on x64 only
+  (above). An ARM64 run of `--self-check` would settle it. `Math.FusedMultiplyAdd` is never called
+  anywhere in `DeterministicMath` regardless.
+- Whether the `double` to `decimal` conversion and `System.Numerics.BigInteger`'s conversion to
+  `double` are specified to be bit-identical on every .NET platform. Both are pure managed code (no
+  native call), which is the property that matters; the Linux run above covers the inputs the
+  fixtures exercise, but no specification was cited.
