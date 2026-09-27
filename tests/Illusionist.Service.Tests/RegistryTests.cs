@@ -10,7 +10,7 @@ namespace Illusionist.Service.Tests;
 public sealed class RegistryTests
 {
 	/// <summary>Append-only: every ref this service has ever published. Never remove an entry.</summary>
-	public static readonly IReadOnlyList<string> PublishedRefs = ["brownian-bridge@1"];
+	public static readonly IReadOnlyList<string> PublishedRefs = ["brownian-bridge@1", "brownian-bridge@2"];
 
 	private static readonly IGeneratorRegistry Registry = new GeneratorRegistry(GeneratorCatalog.All);
 	private static readonly ISeriesService SeriesService = new SeriesService(Registry);

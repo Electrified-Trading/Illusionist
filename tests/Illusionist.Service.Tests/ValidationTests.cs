@@ -145,7 +145,9 @@ public sealed class ValidationTests
 	[Fact]
 	public void UnknownGeneratorVersion()
 	{
-		var error = Fail("generator=brownian-bridge@2&seed=1");
+		// @3 is deliberately never registered (brownian-bridge@1 and @2 are real) -- an unknown
+		// *version* of a known id.
+		var error = Fail("generator=brownian-bridge@3&seed=1");
 
 		Assert.Equal(ErrorCodes.UnknownGeneratorVersion, error.Code);
 		Assert.Equal(404, error.HttpStatus);

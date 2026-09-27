@@ -16,7 +16,7 @@ public sealed class McpGoldenTests(IllusionistWebApplicationFactory factory) : I
 		var @case = BrownianBridgeV1.Instance.GoldenCases.Single(c => c.Name == fixtureName);
 		await using var client = await McpTestClient.CreateAsync(factory);
 
-		var result = await client.CallToolAsync("illusionist_series", @case.ToToolArguments());
+		var result = await client.CallToolAsync("illusionist_series", @case.ToToolArguments(BrownianBridgeV1.Instance.Ref));
 
 		Assert.False(result.IsError == true);
 		var content = result.Content.ToList();

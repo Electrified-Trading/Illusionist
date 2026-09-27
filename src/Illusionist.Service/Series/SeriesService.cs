@@ -1,5 +1,6 @@
 using System.Text;
 using Illusionist.Service.Generators;
+using Illusionist.Service.SelfCheck;
 
 namespace Illusionist.Service.Series;
 
@@ -71,6 +72,9 @@ public sealed class SeriesService(IGeneratorRegistry registry) : ISeriesService
 		var warnings = new List<string>();
 		if (bars.Any(b => b.Timestamp.Year is < 2024 or > 2025))
 			warnings.Add(SeriesEnvelope.CalendarScopeWarning);
+
+		if (version.ReferencePlatform is { } referencePlatform && referencePlatform != HostPlatform.Current)
+			warnings.Add(SeriesEnvelope.PlatformScopeWarning(referencePlatform, HostPlatform.Current));
 
 		if (summary is not null)
 		{

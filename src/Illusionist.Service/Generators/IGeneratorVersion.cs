@@ -33,4 +33,17 @@ public interface IGeneratorVersion
 
 	/// <summary>Opens a stateless source for the given key.</summary>
 	ISeriesSource Open(SeriesKey key);
+
+	/// <summary>
+	/// The one host platform (<see cref="Illusionist.Service.SelfCheck.HostPlatform"/>-formatted,
+	/// e.g. <c>windows-x64</c>) this version's golden fixtures are proven byte-identical on, or
+	/// <see langword="null"/> when this version is proven byte-identical on every host by
+	/// construction (built only from IEEE-754-exact operations -- see
+	/// <see cref="Illusionist.Core.Numerics.DeterministicMath"/>). A version with a reference
+	/// platform is not required to reproduce its own golden cases anywhere else: the readiness gate
+	/// (<see cref="Illusionist.Service.SelfCheck.IGoldenSelfCheck"/>) skips its cases entirely on a
+	/// non-reference host, rather than blocking every other registered version's readiness on a
+	/// platform gap this version admits to having.
+	/// </summary>
+	string? ReferencePlatform => null;
 }

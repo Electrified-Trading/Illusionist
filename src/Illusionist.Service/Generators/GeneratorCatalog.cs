@@ -8,5 +8,5 @@ namespace Illusionist.Service.Generators;
 public static class GeneratorCatalog
 {
 	/// <summary>Every generator version this service runs, in registration order.</summary>
-	public static IReadOnlyList<IGeneratorVersion> All { get; } = [BrownianBridgeV1.Instance];
+	public static IReadOnlyList<IGeneratorVersion> All { get; } = [BrownianBridgeV1.Instance, BrownianBridgeV2.Instance];
 }

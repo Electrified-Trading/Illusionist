@@ -20,9 +20,11 @@ public sealed class SelfCheckTests(IllusionistWebApplicationFactory factory) : I
 		var report = selfCheck.Run();
 
 		Assert.True(report.IsReady);
-		// 6 fixture-backed golden cases + 4 readiness-only cases (range mode, json, non-default
-		// drift, a different anchor date) -- see BrownianBridgeV1.ReadinessCases.
-		Assert.Equal(10, report.Cases.Count);
+		// Two registered versions, 10 cases each (6 fixture-backed golden cases + 4 readiness-only
+		// cases: range mode, json, non-default drift, a different anchor date) -- see
+		// BrownianBridgeV1.ReadinessCases and BrownianBridgeV2.ReadinessCases. On this host (its own
+		// reference platform), @1's cases match for real, not just by being waived.
+		Assert.Equal(20, report.Cases.Count);
 		Assert.All(report.Cases, c => Assert.True(c.Match));
 	}
 
@@ -55,8 +57,8 @@ public sealed class SelfCheckTests(IllusionistWebApplicationFactory factory) : I
 	public async Task WhileNotReady_HealthzIs503_SeriesSurfacesRefuse_GeneratorsStillAnswers()
 	{
 		var failingReport = new SelfCheckReport(
-			new HostInfo("test-os", "test-arch", "test-framework"),
-			[new SelfCheckCaseResult("brownian-bridge@1", "fake-case", "expected", "actual", Match: false)]);
+			new HostInfo("test-os", "test-arch", "test-framework", "test-platform"),
+			[new SelfCheckCaseResult("brownian-bridge@1", "fake-case", "expected", "actual", Match: false, ReferencePlatform: null, CountsTowardReadiness: true)]);
 
 		var fakeSelfCheck = Substitute.For<IGoldenSelfCheck>();
 		fakeSelfCheck.Run().Returns(failingReport);
@@ -111,8 +113,8 @@ public sealed class SelfCheckTests(IllusionistWebApplicationFactory factory) : I
 	{
 		var failing = Substitute.For<IGoldenSelfCheck>();
 		failing.Run().Returns(new SelfCheckReport(
-			new HostInfo("os", "arch", "framework"),
-			[new SelfCheckCaseResult("brownian-bridge@1", "case", "expected", "actual", Match: false)]));
+			new HostInfo("os", "arch", "framework", "platform"),
+			[new SelfCheckCaseResult("brownian-bridge@1", "case", "expected", "actual", Match: false, ReferencePlatform: null, CountsTowardReadiness: true)]));
 
 		var command = new SelfCheckCommand(failing);
 		using var writer = new StringWriter();
