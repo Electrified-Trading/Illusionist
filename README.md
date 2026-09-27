@@ -2,8 +2,6 @@
   <img src="logo.png" alt="Illusionist" width="180">
 </p>
 
-<h1 align="center">Illusionist</h1>
-
 <p align="center"><strong>Deterministic, market-like synthetic price data, as a library, a CLI and a network service.</strong></p>
 
 ---
@@ -18,7 +16,7 @@ real data, or to give an AI agent an unlimited supply of plausible charts. It ho
 or data files and makes no outbound calls, so it is safe to expose as a shared tool: there is
 nothing to leak.
 
-## Quick start
+## Illusionist Quick start
 
 ### As an agent tool (MCP)
 
