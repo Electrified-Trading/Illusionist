@@ -1,3 +1,4 @@
+using Electrified.TimeSeries;
 using Illusionist.Core.Catalog;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -56,7 +57,7 @@ public sealed class GenerateCommand : Command<GenerateCommand.Settings>
 		var schedule = scheduleFactory.GetSchedule(interval);
 
 		// Create GBM factory
-		IBarSeriesFactory factory = CreateFactory(settings);
+		IBarSeriesFactory<OHLC> factory = CreateFactory(settings);
 
 		var series = factory.GetSeries(schedule, anchor);
 		var startTime = DateTime.UtcNow.Date.AddHours(9); // Market open time
@@ -74,10 +75,10 @@ public sealed class GenerateCommand : Command<GenerateCommand.Settings>
 		{
 			table.AddRow(
 				bar.Timestamp.ToString("yyyy-MM-dd HH:mm:ss"),
-				bar.Open.ToString("F2"),
-				bar.High.ToString("F2"),
-				bar.Low.ToString("F2"),
-				bar.Close.ToString("F2"),
+				bar.Data.Open.ToString("F2"),
+				bar.Data.High.ToString("F2"),
+				bar.Data.Low.ToString("F2"),
+				bar.Data.Close.ToString("F2"),
 				bar.Volume.ToString("N0"));
 		}
 
@@ -87,7 +88,7 @@ public sealed class GenerateCommand : Command<GenerateCommand.Settings>
 		return 0;
 	}
 
-	private static IBarSeriesFactory CreateFactory(Settings settings)
+	private static IBarSeriesFactory<OHLC> CreateFactory(Settings settings)
 	{
 		return settings.FactoryType.ToLowerInvariant() switch
 		{

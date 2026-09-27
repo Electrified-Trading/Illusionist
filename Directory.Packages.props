@@ -11,15 +11,31 @@
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.0" />
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <PackageVersion Include="NSubstitute" Version="5.3.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.10" />
     <!-- Not a direct PackageReference of any Illusionist project: pinned only because
-         AlphaHawk's root Directory.Packages.props pins it (for bunit's net9.0 floor,
-         unrelated to Illusionist) and central transitive pinning applies that pin to
-         every project the root file governs, including this one, today. This file
-         becomes the nearest-ancestor CPM file for shared/Illusionist/ even inside the
-         AlphaHawk build, so omitting this entry would silently drop the transitive
-         resolution of Microsoft.Extensions.Primitives from 9.0.11 down to 9.0.0.
-         Verified via `dotnet list package` with transitive packages included, before/after.
-         Kept to preserve exact parity; see task 25-0020. -->
-    <PackageVersion Include="Microsoft.Extensions.Primitives" Version="9.0.11" />
+         a consuming application's root Directory.Packages.props pins it for a reason
+         unrelated to Illusionist, and central transitive pinning applies that pin to
+         every project the root file governs, including this one, when this
+         repository is vendored inside that build. This file becomes the nearest-ancestor
+         CPM file for this repository even inside that consumer's build, so omitting this
+         entry would silently drop the transitive resolution of Microsoft.Extensions.Primitives
+         from 9.0.11 down to 9.0.0. Verified via `dotnet list package` with transitive
+         packages included, before/after. Kept to preserve exact parity.
+         Net10 upgrade: bumped 9.0.11 -> 10.0.10 to stay in parity with the same bump in
+         that consumer's own root Directory.Packages.props. -->
+    <PackageVersion Include="Microsoft.Extensions.Primitives" Version="10.0.10" />
+    <!-- Illusionist.CLI's own dependencies (fixes NU1008; Illusionist.CLI.csproj
+         previously pinned these with an inline Version= attribute, which Central Package
+         Management rejects outright). -->
+    <PackageVersion Include="Spectre.Console" Version="0.49.1" />
+    <PackageVersion Include="Spectre.Console.Cli" Version="0.49.1" />
+    <!-- Package mode only (see Directory.Build.props): the standalone Electrified.TimeSeries
+         package from nuget.org. Its public surface (Bar, Bar<T>, BarInterval, OHLC, DateRange,
+         SymbolTimeframe) covers everything Illusionist uses. -->
+    <PackageVersion Include="Electrified.TimeSeries" Version="1.1.0" />
+    <!-- The Illusionist.Service application: the ModelContextProtocol C# SDK, 2.2.0 (the
+         newest version on nuget.org at design time). -->
+    <PackageVersion Include="ModelContextProtocol" Version="2.2.0" />
+    <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
   </ItemGroup>
 </Project>

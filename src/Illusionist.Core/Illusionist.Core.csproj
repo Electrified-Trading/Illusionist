@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <LangVersion>preview</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -11,8 +11,30 @@
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\..\Electrified.TimeSeries\Electrified.TimeSeries.csproj" />
+  <PropertyGroup>
+    <!-- The Illusionist.Core package. It depends on Electrified.TimeSeries 1.1.0 from
+         nuget.org (stable), so this package is stable too. -->
+    <PackageId>Illusionist.Core</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Electrified-Trading</Authors>
+    <Description>Deterministic, market-like synthetic OHLCV bar series generation via a Brownian-bridge GBM model. Reads no real market data.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/Electrified-Trading/Illusionist</RepositoryUrl>
+  </PropertyGroup>
+
+  <!-- Sibling mode (any checkout with Electrified.TimeSeries present next to this repo):
+       the exact ProjectReference this project has always had, unprivate, so a consumer's own
+       build and its transitive flow to consumers are unchanged. Package mode (standalone, or
+       `dotnet pack`): a real nuget dependency, so the nuspec is honest about what it needs and
+       no consumer-internal code (previously bundled from the vendored Electrified.TimeSeries
+       copy; found in an earlier independent review) ships inside this package.
+       See Directory.Build.props for IllusionistUsePackageReferences itself. -->
+  <ItemGroup Condition="'$(IllusionistUsePackageReferences)' != 'true'">
+    <ProjectReference Include="$(IllusionistElectrifiedTimeSeriesSiblingPath)" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(IllusionistUsePackageReferences)' == 'true'">
+    <PackageReference Include="Electrified.TimeSeries" />
   </ItemGroup>
 
 </Project>

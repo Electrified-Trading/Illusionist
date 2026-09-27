@@ -6,7 +6,7 @@ namespace Illusionist.Tests.Statistics;
 /// </summary>
 /// <remarks>
 /// <para>
-/// AlphaHawk's original GBM generator passed 53 structural tests (High &gt;= Open, Volume &gt; 0,
+/// An earlier GBM generator passed 53 structural tests (High &gt;= Open, Volume &gt; 0,
 /// determinism) for a year while emitting a series with none of the statistical properties of a
 /// random walk: setting <c>volatility: 0</c> changed nothing, the variance ratio decayed as ~1/k,
 /// and lag-1 autocorrelation sat at -0.50 -- the signature of differenced i.i.d. noise, not a

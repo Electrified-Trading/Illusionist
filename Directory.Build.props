@@ -1,0 +1,31 @@
+<Project>
+
+  <!-- Chain to any Directory.Build.props above this repository. Built as part of a consuming
+       application that vendors this repository next to an Electrified.TimeSeries source
+       folder, that ancestor file's AnalysisLevel, EnforceCodeStyleInBuild, WarningsAsErrors
+       NU1603 and SourceLink/symbol settings applied to Illusionist before this file existed,
+       and must keep applying (confirmed in an earlier independent review). Standalone,
+       nothing exists above it, so nothing is imported. -->
+  <PropertyGroup>
+    <IllusionistParentBuildProps>$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))</IllusionistParentBuildProps>
+  </PropertyGroup>
+  <Import Project="$(IllusionistParentBuildProps)" Condition="'$(IllusionistParentBuildProps)' != ''" />
+
+  <PropertyGroup>
+    <!-- Whether Illusionist's own projects consume Electrified.TimeSeries as a sibling
+         ProjectReference (when this repository is checked out next to an Electrified.TimeSeries
+         source folder, as in a consuming application that vendors both) or as a standalone
+         PackageReference (Electrified.TimeSeries 1.1.0 from nuget.org, pinned in
+         Directory.Packages.props). Auto-detected from whether the
+         sibling exists next to this repository; force it explicitly with
+         `-p:IllusionistUsePackageReferences=true` so `dotnet pack` never silently picks up
+         a sibling checkout by accident. Defined here, once, so every project (Core, CLI,
+         Tests) resolves the exact same sibling path regardless of its own folder depth;
+         `$(MSBuildThisFileDirectory)` always means this file's own directory (the
+         repository root), not the importing project's. -->
+    <IllusionistElectrifiedTimeSeriesSiblingPath>$(MSBuildThisFileDirectory)..\Electrified.TimeSeries\Electrified.TimeSeries.csproj</IllusionistElectrifiedTimeSeriesSiblingPath>
+    <IllusionistUsePackageReferences Condition="'$(IllusionistUsePackageReferences)' == '' AND !Exists('$(IllusionistElectrifiedTimeSeriesSiblingPath)')">true</IllusionistUsePackageReferences>
+    <IllusionistUsePackageReferences Condition="'$(IllusionistUsePackageReferences)' == ''">false</IllusionistUsePackageReferences>
+  </PropertyGroup>
+
+</Project>
