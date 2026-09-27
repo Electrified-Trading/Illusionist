@@ -53,6 +53,51 @@ public sealed class SelfCheckTests(IllusionistWebApplicationFactory factory) : I
 		Assert.NotEqual(report.Cases.Single().Expected, report.Cases.Single().Actual);
 	}
 
+	/// <summary>
+	/// The scenario this host cannot otherwise exercise (it *is* brownian-bridge@1's own reference
+	/// platform, so @1 always matches here, and @2 has no reference platform to ever fail against):
+	/// a version whose declared <see cref="IGeneratorVersion.ReferencePlatform"/> never matches this
+	/// host reports its real (mis)match honestly but does not block another, fully-portable version's
+	/// readiness -- the D8/reference-platform design this task's finding required.
+	/// </summary>
+	[Fact]
+	public void ReferencePlatformMismatch_ReportedHonestly_ButDoesNotBlockReadiness()
+	{
+		var reference = BrownianBridgeV1.Instance;
+		var mismatchedCase = reference.GoldenCases[0] with { Sha256 = "0" + reference.GoldenCases[0].Sha256[1..] };
+
+		var pinnedElsewhere = Substitute.For<IGeneratorVersion>();
+		pinnedElsewhere.Ref.Returns(reference.Ref);
+		pinnedElsewhere.GoldenCases.Returns([mismatchedCase]);
+		pinnedElsewhere.ReadinessCases.Returns([mismatchedCase]);
+		pinnedElsewhere.ReferencePlatform.Returns("never-matches-any-real-host");
+		pinnedElsewhere.Open(Arg.Any<SeriesKey>()).Returns(callInfo => reference.Open(callInfo.Arg<SeriesKey>()));
+
+		var portable = Substitute.For<IGeneratorVersion>();
+		portable.Ref.Returns(new GeneratorRef("portable-generator", 1));
+		portable.GoldenCases.Returns([reference.GoldenCases[0]]);
+		portable.ReadinessCases.Returns([reference.GoldenCases[0]]);
+		portable.ReferencePlatform.Returns((string?)null);
+		portable.Open(Arg.Any<SeriesKey>()).Returns(callInfo => reference.Open(callInfo.Arg<SeriesKey>()));
+
+		var registry = new GeneratorRegistry([pinnedElsewhere, portable]);
+		var selfCheck = new GoldenSelfCheck(registry, new SeriesService(registry));
+
+		var report = selfCheck.Run();
+
+		Assert.True(report.IsReady);
+
+		var pinnedResult = report.Cases.Single(c => c.Ref == reference.Ref.ToString());
+		Assert.False(pinnedResult.Match);
+		Assert.False(pinnedResult.CountsTowardReadiness);
+		Assert.Equal("never-matches-any-real-host", pinnedResult.ReferencePlatform);
+
+		var portableResult = report.Cases.Single(c => c.Ref == "portable-generator@1");
+		Assert.True(portableResult.Match);
+		Assert.True(portableResult.CountsTowardReadiness);
+		Assert.Null(portableResult.ReferencePlatform);
+	}
+
 	[Fact]
 	public async Task WhileNotReady_HealthzIs503_SeriesSurfacesRefuse_GeneratorsStillAnswers()
 	{
