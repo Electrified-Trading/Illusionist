@@ -1,229 +1,200 @@
-# Illusionist
+<p align="center">
+  <img src="logo.png" alt="Illusionist" width="180">
+</p>
 
-Illusionist generates deterministic, market-like synthetic OHLCV bar series. It never reads real
-market data and carries no credentials or network access -- every bar is a pure function of a
-handful of numeric parameters, which is what makes it safe to expose as a shared tool: there is
-nothing in it to leak.
+<h1 align="center">Illusionist</h1>
 
-## What it generates
+<p align="center"><strong>Deterministic, market-like synthetic price data, as a library, a CLI and a network service.</strong></p>
 
-`Illusionist.Core.Catalog.BrownianBridgeBarSeries` builds one sample path of a Geometric Brownian
-Motion price process via a Brownian bridge: Gaussian increments are fixed at power-of-two
-"checkpoint" times from a deterministic hash, then bisected down to the exact query timestamp via
-midpoint displacement -- the standard, exact method for simulating one Wiener-process sample path.
-Both steps are O(log elapsed seconds from the anchor); the generator holds no state between calls,
-so any bar at any timestamp can be requested directly, in any order, with no memory of prior
-requests. High/Low are a deliberate simplification (a volatility-scaled perturbation around the
-bar's open/midpoint/close) rather than sampled from the exact bridge-extremum distribution -- see
-`BrownianBridgeBarSeries.Generator`'s own remarks.
+---
 
-## Reproducibility: the key
+Illusionist generates realistic OHLCV bar series (open, high, low, close, volume) that behave like a
+real random-walk market, **without ever touching real market data**. Every bar is a pure function of
+a handful of numbers. The same request always returns the same bytes, so you can share a result by
+sharing its parameters.
 
-The current algorithm is named `brownian-bridge@1` (the generator as it exists at commit
-`c3bccfb`; a future change to the algorithm that alters output gets a new version number). Given
-the same key, the generator produces byte-identical bars on every call, in every process, forever
-(see [Scope](#the-scope-of-byte-identical-stated-honestly), below, for exactly how far that
-promise extends). The full key is:
+Use it to test charting, backtesting and scanning code, to train or evaluate models without leaking
+real data, or to give an AI agent an unlimited supply of plausible charts. It holds no credentials
+or data files and makes no outbound calls, so it is safe to expose as a shared tool: there is
+nothing to leak.
+
+## Quick start
+
+### As an agent tool (MCP)
+
+Run the service (see [Running the service](#running-the-service)), then register it with any MCP
+client, for example Claude Code:
+
+```bash
+claude mcp add --transport http illusionist https://<your-host>/mcp
+```
+
+The service exposes three tools:
+
+| Tool | What it does |
+|---|---|
+| `illusionist_generators` | Lists the available generators and their versions |
+| `illusionist_describe` | Explains one generator: its parameters, their ranges, and exactly what it guarantees |
+| `illusionist_series` | Generates a bar series |
+
+### Over HTTP
+
+The same three operations are available as a plain REST API that returns byte-identical results:
+
+```bash
+curl "http://localhost:8080/v1/series?generator=brownian-bridge@1&seed=1&count=60"
+```
+
+Other routes: `GET /v1/generators`, `GET /v1/generators/{id}@{version}`, `GET /healthz`, `GET /`.
+
+### From code or the command line
+
+```bash
+dotnet run --project src/Illusionist.CLI -- generate --symbol AAPL --seed 12345 --interval 1d --drift 0.0001 --volatility 0.01
+```
+
+```csharp
+var schedule = new DefaultEquitiesScheduleFactory().GetSchedule(BarInterval.Day(1));
+var anchor = new BarAnchor(new DateTime(2023, 3, 1, 9, 30, 0), 100m);
+
+// Bare seed: the seed alone picks the path.
+var generator = new BrownianBridgeBarSeries.Generator(seed: 12345, schedule, drift: 0.0001, volatility: 0.01, anchor);
+var bar = generator.GetBarAt(anchor.Timestamp);
+
+// Symbol-hashed: one seed gives a different path per symbol.
+var factory = new BrownianBridgeBarSeries.Factory(symbol: "AAPL", seed: 12345, drift: 0.0001, volatility: 0.01);
+var bars = factory.GetSeries(schedule, anchor).GetBars(anchor.Timestamp).Take(30);
+```
+
+## Series parameters
+
+`illusionist_series` and `GET /v1/series` take the same parameters. Only `generator` and `seed` are
+required; the defaults reproduce the reference series exactly.
+
+| Parameter | Default | Range | Meaning |
+|---|---|---|---|
+| `generator` | *(required)* | | Generator and version, e.g. `brownian-bridge@1`. Always explicit: a version's output never changes. |
+| `seed` | *(required)* | any 32-bit integer | Different seeds give independent paths. |
+| `seedMode` | `bare` | `bare`, `symbol-hashed` | `bare`: the seed alone picks the path. `symbol-hashed`: the seed is combined with a hash of `symbol`. |
+| `symbol` | | | A label hashed into the seed (`symbol-hashed` only). Not a lookup: the output has nothing to do with the real instrument. |
+| `drift` | `0.0001` | −0.5 to 0.5 | Annualized log drift (0.08 ≈ +8%/yr). |
+| `volatility` | `0.01` | 0 to 1 | Annualized volatility; typical stocks are 0.2–0.5. The default is the reference geometry and looks nearly flat. |
+| `anchorDate` | `2023-03-01` | 1900-01-01 to 2199-12-31 | Date of the first bar (09:30), where the path starts at `anchorPrice`. Must be a weekday, and not a 2024–2025 U.S. market holiday. |
+| `anchorPrice` | `100` | 0.01 to 100,000 | Price at the anchor bar's open. |
+| `timeframe` | `1d` | `1d` | Bar interval. `brownian-bridge@1` supports daily bars only. |
+| `count` | `60` | 1 to 20,000 | Number of bars starting at the anchor. Use `count` or `from`/`to`, not both. |
+| `from`, `to` | | | A date range (inclusive); bars fall on every trading day in it, before or after the anchor. |
+| `format` | `csv` | `csv`, `json` | `csv`: `Index,TimestampTicks,Open,High,Low,Close,Volume`. `json`: rows of `[timestamp, open, high, low, close, volume]`. |
+
+Results carry a small JSON envelope. A body over 16 KiB comes back as a re-derivable
+`illusionist://series?...` resource link (or REST path) instead of inline bytes; reading it
+regenerates the identical bytes on demand. Unknown parameters and out-of-range values are rejected
+with a stable error `code`, a message and the offending `parameter`, identically over MCP and REST.
+
+Two non-fatal **warnings** can appear in the envelope. The bytes are the same either way:
+- `calendar` — some bars fall outside 2024–2025, the years the holiday calendar covers (see
+  [Known limitations](#known-limitations)).
+- `extreme_prices` — the series climbed above 1,000× or fell below 1/1,000 of `anchorPrice`. Every
+  parameter can be inside its legal range and still walk the price somewhere implausible over enough
+  bars; the warning says so rather than refusing the request.
+
+## Reproducibility
+
+The same request returns byte-identical output on every call, in every process. A request is fully
+described by:
 
 ```
 (generator@version, seedMode, seed, symbol, drift, volatility, anchor, timeframe, bar count or range)
 ```
 
-- **generator@version** -- `brownian-bridge@1` today.
-- **seedMode** -- `bare` or `symbol-hashed` (see [Two entry points](#two-independent-entry-points), below). Every other field's meaning depends on which mode is in play.
-- **seed** -- the caller's `int`.
-- **symbol** -- only meaningful in `symbol-hashed` mode; absent (plays no role at all) in `bare` mode.
-- **drift**, **volatility** -- annualized GBM parameters.
-- **anchor** -- the generator's reference timestamp and starting price (`BarAnchor`).
-- **timeframe** -- the bar interval and schedule (`ISchedule` + `BarInterval`; today, always the daily `DefaultEquitiesSchedule`).
-- **bar count or range** -- how many bars, or which timestamp range, is requested.
+Every parameter that changes the output is in that tuple. When the algorithm changes in a way that
+alters output, it gets a new version number (`brownian-bridge@2`), so old results stay reproducible
+forever. Committed golden fixtures (`tests/Golden/`) pin the current version's output byte for byte.
 
-Every parameter that changes output is in this tuple. `tests/Golden/GoldenBarSeriesCases.cs` pins
-a spread of these values -- read from a downstream consumer's own usage, not invented -- against
-committed fixture bytes in `tests/Golden/Fixtures/`; `tests/Golden/GeneratorGoldenTests.cs` is the
-comparison itself.
+**How far "byte-identical" reaches, stated honestly.** The generator uses floating-point functions
+(`exp`, `log`, `cos`, `sqrt`) that call the platform's C math library: UCRT on Windows, glibc on
+Linux. Different libraries are not guaranteed to round identically at the last bit. So the golden
+fixtures are **verified on x64 Windows with .NET 10**. Another operating system, CPU architecture or
+.NET major version is **unverified until the self-check passes there**. That is exactly what the
+self-check is for.
 
-## Two independent entry points
+### The self-check
 
-`BrownianBridgeBarSeries` exposes two ways to reach the same underlying `Generator`, and they are
-**not interchangeable** -- each is its own reproducibility key, per the `seedMode` field above:
+On startup, and on every `GET /healthz`, the service regenerates ten readiness cases and compares
+them with pinned SHA-256 hashes:
+- the six golden fixtures;
+- four more cases that each vary one thing the six never do (a date range, a JSON body, a
+  non-default drift, a different anchor date).
 
-- **`BrownianBridgeBarSeries.Generator`, direct (`bare` seed mode).** Constructed with a plain
-  `int` seed; a symbol is never involved. This is the only path a downstream consumer's own
-  production regeneration path uses.
-- **`BrownianBridgeBarSeries` / `BrownianBridgeBarSeries.Factory` (`symbol-hashed` seed mode).**
-  Combines the caller's seed with a DJB2 hash of the symbol
-  (`BrownianBridgeBarSeries.GetDeterministicHashCode`) to build the generator's real internal
-  seed. This path has its own history: earlier versions combined the seed with
-  `string.GetHashCode()`, which .NET randomizes per process by default, so the same
-  `(symbol, seed)` pair produced a different path on every process launch. DJB2 fixed that; the
-  fix is covered by a genuine cross-process test (spawning real, separate OS processes, since an
-  in-process assertion cannot observe per-process hash randomization) in a downstream consumer's
-  own cross-process stability check, and by this repo's own golden fixtures
-  (`symbol-hashed-synth-seed12345` / `symbol-hashed-aapl-seed12345`).
+A host that cannot reproduce them stays up, so its failure report is readable at `/healthz`, but it
+refuses series requests with `not_ready`. To check a host without starting the web server:
 
-## The scope of "byte-identical", stated honestly
-
-The generator builds every bar from double-precision transcendentals (`Math.Exp`, `Math.Log`,
-`Math.Cos`, `Math.Sqrt` -- see `BrownianBridgeBarSeries.Generator.GaussianAt`/`PriceAt`). IEEE-754
-guarantees those operations' inputs and outputs, not that two different runtimes compute the same
-intermediate rounding on the way there -- and "runtime" here is not just CPU architecture or .NET
-version. Those transcendental functions are calls into the platform's own C math library
-(`libm`), not managed .NET code: Windows uses UCRT, Linux uses glibc, and the two are separate
-implementations that are not guaranteed to round identically at the last bit for the same double
-input. The golden fixtures in this repo are therefore only known to hold **on the exact axis they
-were generated and verified on**: one .NET major version family, x64, **Windows/UCRT**. Any of
-three things changing -- CPU architecture (ARM64 in particular), .NET major version, or the
-operating system / C math library (Linux's glibc vs. Windows' UCRT, even on the same x64 CPU and
-.NET version) -- makes byte-identity **UNVERIFIED** until a golden run actually passes there.
-`tests/Golden/ReproducibilityScopeTests.cs` exists to make that provable rather than assumed: it
-prints the running process's own `RuntimeInformation` (architecture, framework) beside a real
-golden comparison's pass/fail, so running that one test on a new host is the actual proof
-procedure for that host. The service (below) ships to a Linux container
-(`mcr.microsoft.com/dotnet/aspnet:10.0`, glibc) built and verified so far only on Windows: **Linux
-x64 byte-identity is UNVERIFIED** until that container's own golden self-check has actually run and
-passed -- which is exactly what the self-check's startup gate and `--self-check` command exist to
-prove per host, rather than assume from "same CPU architecture."
-
-## Statistical guarantees
-
-Structural correctness (`High >= Open`, determinism, well-formed OHLC) is necessary but not
-sufficient -- an earlier generator passed 53 structural tests for a year while emitting
-a series with none of the statistical properties of a random walk. `tests/Statistics/` holds a
-dedicated battery against that failure mode, each assertion targeting one specific known defect
-and each tolerance derived from the statistic's own sampling distribution under a true random
-walk, fixed before any corrected generator existed:
-
-- **Continuity** -- consecutive bars chain (the next bar's open equals the prior bar's close).
-- **Autocorrelation** -- a random walk's returns are uncorrelated: lag-1 autocorrelation ~= 0 (the
-  prior generator measured -0.50, the signature of differenced i.i.d. noise, not a price path).
-- **Variance ratio** -- Lo & MacKinlay's VR(k) holds ~= 1 at every horizon for a true random walk
-  (the prior generator decayed as ~1/k).
-- **Parameter liveness** -- `volatility: 0` must produce zero-variance returns, and increasing
-  volatility must increase realized return variance (the prior generator's `volatility` parameter
-  did nothing).
-
-## Usage
-
-CLI:
-
-```
-dotnet run --project src/Illusionist.CLI -- generate --symbol AAPL --seed 12345 --interval 1d --drift 0.0001 --volatility 0.01
-```
-
-Library, bare-seed (never combines a symbol into the seed):
-
-```csharp
-var schedule = new DefaultEquitiesScheduleFactory().GetSchedule(BarInterval.Day(1));
-var anchor = new BarAnchor(new DateTime(2023, 3, 1, 9, 30, 0), 100m);
-var generator = new BrownianBridgeBarSeries.Generator(seed: 12345, schedule, drift: 0.0001, volatility: 0.01, anchor);
-
-var bar = generator.GetBarAt(anchor.Timestamp);
-```
-
-Library, symbol-hashed:
-
-```csharp
-var factory = new BrownianBridgeBarSeries.Factory(symbol: "AAPL", seed: 12345, drift: 0.0001, volatility: 0.01);
-var series = factory.GetSeries(schedule, anchor);
-var bars = series.GetBars(anchor.Timestamp).Take(30);
-```
-
-## Known limitations
-
-- **`DefaultEquitiesSchedule`'s holiday calendar covers 2024-2025 only.** It is a fixed,
-  version-scoped constant (a `HashSet<DateOnly>` literal); outside those two years, holidays are
-  not skipped -- the schedule still correctly excludes weekends, but a date that is a real U.S.
-  market holiday in, say, 2026 or 2023 is treated as a valid trading day.
-- **The `Electrified.TimeSeries` reference, resolved two ways.** `Illusionist.Core.csproj` (and
-  `Illusionist.CLI.csproj`/`Illusionist.Tests.csproj`) reference `Electrified.TimeSeries` either as
-  a `ProjectReference` to a sibling checkout (sibling mode -- how a consumer that vendors this
-  repository next to an Electrified.TimeSeries source folder resolves it today, unchanged) or as a
-  real `PackageReference` on the published `Electrified.TimeSeries` package (package mode -- used
-  standalone, and always for `dotnet pack`; see `Directory.Build.props`). This means a fully
-  standalone clone now builds and packs correctly (resolving the standalone half of a known
-  packaging gap); the other half -- whether a downstream consumer ever switches its own vendored
-  copy for the published package -- remains an owner decision (type identity: any consumer mixing
-  the vendored copy and the published package in the same process must not observe two
-  non-identical definitions of `Bar<T>`/`OHLC`, which is exactly why package mode never bundles the
-  vendored copy's own DLL).
-
-## Packaging
-
-`Illusionist.Core` packs as a NuGet package (`Illusionist.Core`, targeting `net10.0`). See
-`change-log/` for version history.
-
-## Service
-
-`src/Illusionist.Service` is a stateless ASP.NET Core application (`net10.0`) that exposes the
-generator above as both an MCP server and a plain REST API. It reads no configuration secrets and
-carries no credentials; every instance behaves identically given the same request.
-
-### Endpoints
-
-- MCP: `POST /mcp` (streamable HTTP, stateless). Three tools: `illusionist_generators`,
-  `illusionist_describe`, `illusionist_series`. Register a running instance with an MCP client, e.g.:
-  ```
-  claude mcp add --transport http illusionist https://<your-host>/mcp
-  ```
-- REST twin: `GET /v1/generators`, `GET /v1/generators/{id}@{version}`, `GET /v1/series?...`,
-  `GET /healthz`, `GET /`.
-
-`illusionist_series`/`GET /v1/series` take `generator` and `seed` (required) plus `seedMode`,
-`symbol`, `drift`, `volatility`, `anchorDate`, `anchorPrice`, `timeframe`, `count` (or `from`/`to`),
-and `format` (`csv` or `json`). Every other field defaults to the golden reference geometry, so
-`generator=brownian-bridge@1&seed=1` alone reproduces fixture `bare-reference-seed1` byte for byte.
-Results carry a small JSON envelope; a body over 16 KiB comes back as a re-derivable
-`illusionist://series?...` resource link/REST path instead of inline bytes -- reading it regenerates
-the identical bytes on demand. At most 20,000 bars per call. Unknown or misspelled parameters, and
-values outside their documented ranges, are rejected with a deterministic error taxonomy (a stable
-`code`, a message, and the offending `parameter`) shared identically across MCP and REST.
-
-The envelope can also carry non-fatal `warnings` -- the request still succeeds and the rendered
-bytes are exactly the same either way, warnings or not:
-
-- `calendar: ...` whenever any bar falls outside 2024-2025, since the holiday calendar only covers
-  those two years there (weekends are still excluded correctly; a real holiday outside that window
-  is not).
-- `extreme_prices: ...` whenever the series' highest high exceeds 1,000x `anchorPrice`, or its
-  lowest low falls below 1/1,000 of it. Every parameter individually stays inside its documented,
-  legal range (drift up to 0.5/yr, volatility up to 1.0/yr, up to 20,000 bars) -- a well-formed
-  request can still walk the price to an implausible extreme (a $100 anchor can reach into the
-  trillions over enough bars at the legal drift ceiling) without erroring, so this warning is the
-  signal, not a rejection. The bounds themselves are deliberately not tightened by this warning;
-  that is an owner decision, not this service's to make unilaterally.
-
-### Readiness: the golden self-check
-
-Before Kestrel starts listening, and again on every `GET /healthz` call, the service regenerates ten
-readiness cases -- the six golden fixtures above, plus four more that each isolate one axis those
-six never vary (a range-mode extent, a JSON body, a non-default drift, a different anchor date) --
-and compares their SHA-256 against pinned hashes. A host that cannot reproduce them stays up (so the
-failing report stays readable at `/healthz`) but refuses every series-bearing request with
-`not_ready` until it passes. Run the same check without starting the web host:
-
-```
+```bash
 dotnet Illusionist.Service.dll --self-check
 ```
 
-Prints the report JSON and exits 0 on pass, 1 on fail -- Ops's one-line proof that a given host
-reproduces this repository's readiness cases.
+It prints the report as JSON and exits 0 on a pass, 1 on a failure.
 
-### Running
+## Running the service
 
-```
+```bash
 docker build --platform linux/amd64 -t illusionist:local .
-docker run -d --rm -p 8080:8080 illusionist:local
+docker run --rm illusionist:local --self-check        # prove this host reproduces the fixtures
+docker run -d --rm -p 8080:8080 illusionist:local     # then run it
 ```
 
-Environment variables:
+The service is stateless: no volume, no token, no secrets, and any number of replicas. Put TLS in
+front of it (for example, a reverse proxy). Logs are structured JSON on stdout.
 
-- `ASPNETCORE_HTTP_PORTS` -- the listening port (8080 in the published image).
-- `Illusionist__PublicBaseUrl` -- optional, an absolute `http(s)` URL with no trailing slash, used
-  to make the envelope's `rest` field and REST's own links absolute. Startup fails fast with a
-  clear message if set to anything else. Unset, links are relative (`/v1/series?...`).
-- `Logging__LogLevel__Default` -- the standard ASP.NET Core setting.
+| Environment variable | Purpose |
+|---|---|
+| `ASPNETCORE_HTTP_PORTS` | Listening port (8080 in the image). |
+| `Illusionist__PublicBaseUrl` | Optional absolute `http(s)` URL, no trailing slash, used to make links in results absolute. Startup fails fast if it is malformed. |
+| `Logging__LogLevel__Default` | Standard ASP.NET Core log level. |
 
-There is no TLS, no token and no volume: the service is stateless and LAN-only, with TLS expected
-to terminate in front of it (e.g. an nginx vhost with a wildcard certificate). Logs are structured
-JSON, one object per line, on stdout.
+## How it works
+
+`brownian-bridge@1` simulates a **geometric Brownian motion** price path. Gaussian increments are
+fixed at power-of-two "checkpoint" times from a deterministic hash, then bisected down to the exact
+bar time by midpoint displacement: the standard, exact way to sample one path of a Wiener process.
+Each bar costs O(log elapsed time) and needs no state, so any bar at any time can be requested
+directly, in any order. Highs and lows are a deliberate simplification: a volatility-scaled spread
+around the bar's open, midpoint and close, not a draw from the exact extremum distribution.
+
+Structural checks (well-formed OHLC, determinism) are not enough on their own. An earlier generator
+passed dozens of them while producing nothing like a random walk. `tests/Statistics/` checks the
+statistics directly:
+- **Continuity:** each bar opens at the previous close.
+- **No autocorrelation:** returns are uncorrelated from bar to bar.
+- **Variance ratio:** it holds near 1 at every horizon, as a random walk requires.
+- **Parameter liveness:** zero volatility gives zero variance, and more volatility gives more.
+
+## Building and testing
+
+```bash
+dotnet build Illusionist.sln -c Release
+dotnet test Illusionist.sln
+```
+
+Requires the .NET 10 SDK. `Electrified.TimeSeries` restores from nuget.org; if a sibling
+`Electrified.TimeSeries` source checkout sits next to this repository, it is referenced as source
+instead (see `Directory.Build.props`).
+
+| Folder | Contents |
+|---|---|
+| `src/Illusionist.Core` | The generators and bar model |
+| `src/Illusionist.Service` | The MCP and REST service, and the self-check |
+| `src/Illusionist.CLI` | The command-line tool |
+| `tests/` | Unit, golden-fixture, statistical and service tests |
+
+## Known limitations
+
+- **The holiday calendar covers 2024–2025 only.** Outside those years, weekends are still skipped,
+  but real U.S. market holidays are treated as trading days.
+- **Daily bars only** in `brownian-bridge@1`.
+- **Byte-identity beyond x64 Windows / .NET 10 is unverified** until the self-check passes on that
+  host (see [Reproducibility](#reproducibility)).
+
+## License
+
+MIT. See [LICENSE](LICENSE).

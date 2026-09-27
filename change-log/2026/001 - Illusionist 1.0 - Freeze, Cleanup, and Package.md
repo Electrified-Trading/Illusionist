@@ -71,5 +71,5 @@ README's own "Known standalone-build limitation" section.
 ## Packaging
 
 `Illusionist.Core` packs as `Illusionist.Core` 1.0.0, targeting `net10.0`, to
-`%LOCALAPPDATA%\Electrified\nuget-local`. A downstream consumer's own switch from the submodule
+a local package feed. A downstream consumer's own switch from the submodule
 source to this package is a separate, later piece of work.

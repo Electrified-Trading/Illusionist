@@ -31,7 +31,7 @@ would fail at runtime (TypeLoad/MissingMethod), not at build time.
   `SymbolTimeframe`) without the internal-namespace leakage described above, and to produce
   golden-identical output.
 
-Added a repo `NuGet.config` adding the local feed (`%LOCALAPPDATA%\Electrified\nuget-local`)
+Added a repo `NuGet.config` adding a local package feed
 alongside nuget.org, so package mode can restore standalone. The bundling workaround
 (`CopyProjectReferencesToPackage` / `TargetsForTfmSpecificBuildOutput`) is removed;
 `Illusionist.Core.1.0.0.nupkg` now declares a real
