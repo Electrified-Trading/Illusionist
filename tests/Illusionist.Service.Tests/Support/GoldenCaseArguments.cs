@@ -1,13 +1,13 @@
 namespace Illusionist.Service.Tests.Support;
 
-/// <summary>Builds an <c>illusionist_series</c> argument dictionary or query string for one <see cref="GoldenCase"/>.</summary>
+/// <summary>Builds an <c>illusionist_series</c> argument dictionary or query string for one <see cref="GoldenCase"/>, against an explicit generator version -- never defaulted, so a V2 (or later) test can never accidentally exercise V1's wire path instead.</summary>
 internal static class GoldenCaseArguments
 {
-	public static Dictionary<string, object?> ToToolArguments(this GoldenCase @case)
+	public static Dictionary<string, object?> ToToolArguments(this GoldenCase @case, GeneratorRef generator)
 	{
 		var arguments = new Dictionary<string, object?>
 		{
-			["generator"] = "brownian-bridge@1",
+			["generator"] = generator.ToString(),
 			["seed"] = @case.Seed,
 			["count"] = @case.Count,
 			["drift"] = @case.Drift,
@@ -27,9 +27,9 @@ internal static class GoldenCaseArguments
 		return arguments;
 	}
 
-	public static string ToQueryString(this GoldenCase @case)
+	public static string ToQueryString(this GoldenCase @case, GeneratorRef generator)
 	{
-		var key = @case.ToKey(new GeneratorRef("brownian-bridge", 1));
+		var key = @case.ToKey(generator);
 		return SeriesQuery.Canonical(key);
 	}
 }

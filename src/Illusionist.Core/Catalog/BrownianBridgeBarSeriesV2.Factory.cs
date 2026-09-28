@@ -1,0 +1,30 @@
+using Electrified.TimeSeries;
+
+namespace Illusionist.Core.Catalog;
+
+public sealed partial class BrownianBridgeBarSeriesV2
+{   /// <summary>
+	/// Factory for creating <c>brownian-bridge@2</c> bar series instances with deterministic
+	/// behavior. Uses Geometric Brownian Motion to simulate realistic market price evolution.
+	/// </summary>
+	/// <remarks>
+	/// Initializes a new instance of the <see cref="Factory"/> class.
+	/// </remarks>
+	/// <param name="symbol">The trading symbol for generated series</param>
+	/// <param name="seed">The random seed for deterministic generation</param>
+	/// <param name="drift">The drift parameter for GBM (annual growth rate)</param>
+	/// <param name="volatility">The volatility parameter for GBM (annual volatility)</param>
+	public sealed class Factory(string symbol, int seed, double drift = 0.0001, double volatility = 0.01) : IBarSeriesFactory<OHLC>
+	{
+		/// <summary>
+		/// Creates a <c>brownian-bridge@2</c> bar series with the specified schedule and anchor point.
+		/// </summary>
+		/// <param name="schedule">The schedule defining valid bars</param>
+		/// <param name="anchor">The anchor point for bar alignment and pricing reference</param>
+		/// <returns>A deterministic GBM bar series instance</returns>
+		public IBarSeries<OHLC> GetSeries(ISchedule schedule, BarAnchor anchor)
+		{
+			return new BrownianBridgeBarSeriesV2(symbol, seed, schedule, anchor, drift, volatility);
+		}
+	}
+}

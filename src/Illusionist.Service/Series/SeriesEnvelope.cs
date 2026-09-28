@@ -34,6 +34,18 @@ public static class SeriesEnvelope
 		"calendar: U.S. market holidays are only known for 2024-2025; outside those years they are treated as trading days.";
 
 	/// <summary>
+	/// Emitted whenever a request is served by a generator version whose declared
+	/// <see cref="Illusionist.Service.Generators.IGeneratorVersion.ReferencePlatform"/> is not this
+	/// host's own platform: the bytes are real and the key still resolves, but they are not proven
+	/// byte-identical to what the reference platform would have produced for the same key (see the
+	/// README's Reproducibility section).
+	/// </summary>
+	/// <param name="referencePlatform">The version's declared reference platform.</param>
+	/// <param name="hostPlatform">This host's own platform.</param>
+	public static string PlatformScopeWarning(string referencePlatform, string hostPlatform)
+		=> $"platform: this host ({hostPlatform}) is not this generator's reference platform ({referencePlatform}); output is not proven byte-identical to the reference.";
+
+	/// <summary>
 	/// A well-formed, in-range key (legal drift/volatility/anchorPrice/date bounds) can still walk
 	/// the price arbitrarily far from <c>anchorPrice</c> without overflowing -- this is a
 	/// plausibility signal, not a validation failure: the key succeeds and the bytes are unchanged,

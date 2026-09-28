@@ -12,7 +12,7 @@ public sealed class RestParityTests(IllusionistWebApplicationFactory factory) : 
 	public async Task Series_GoldenCase_RestEqualsMcp(string fixtureName, string format)
 	{
 		var @case = BrownianBridgeV1.Instance.GoldenCases.Single(c => c.Name == fixtureName);
-		var arguments = @case.ToToolArguments();
+		var arguments = @case.ToToolArguments(BrownianBridgeV1.Instance.Ref);
 		arguments["format"] = format;
 
 		var mcpBody = await CallSeriesToolInlineBody(arguments);

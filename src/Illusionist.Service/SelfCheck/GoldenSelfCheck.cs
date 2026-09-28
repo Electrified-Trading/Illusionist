@@ -22,6 +22,11 @@ public sealed class GoldenSelfCheck(IGeneratorRegistry registry, ISeriesService 
 
 		foreach (var version in registry.All)
 		{
+			// A version with a declared reference platform is only held to its golden cases there;
+			// elsewhere, a mismatch is reported honestly but never blocks readiness (see
+			// IGeneratorVersion.ReferencePlatform and SelfCheckCaseResult.CountsTowardReadiness).
+			var countsTowardReadiness = version.ReferencePlatform is null || version.ReferencePlatform == HostPlatform.Current;
+
 			foreach (var goldenCase in version.ReadinessCases)
 			{
 				var actual = RunCase(version, goldenCase);
@@ -30,14 +35,17 @@ public sealed class GoldenSelfCheck(IGeneratorRegistry registry, ISeriesService 
 					goldenCase.Name,
 					goldenCase.Sha256,
 					actual,
-					string.Equals(actual, goldenCase.Sha256, StringComparison.Ordinal)));
+					string.Equals(actual, goldenCase.Sha256, StringComparison.Ordinal),
+					version.ReferencePlatform,
+					countsTowardReadiness));
 			}
 		}
 
 		var host = new HostInfo(
 			RuntimeInformation.OSDescription,
 			RuntimeInformation.ProcessArchitecture.ToString(),
-			RuntimeInformation.FrameworkDescription);
+			RuntimeInformation.FrameworkDescription,
+			HostPlatform.Current);
 
 		return new SelfCheckReport(host, results);
 	}

@@ -47,6 +47,7 @@
   <ItemGroup>
     <Compile Include="..\Golden\GoldenBarSeriesCase.cs" Link="Golden\GoldenBarSeriesCase.cs" />
     <Compile Include="..\Golden\GoldenBarSeriesCases.cs" Link="Golden\GoldenBarSeriesCases.cs" />
+    <Compile Include="..\Golden\GoldenBarSeriesCasesV2.cs" Link="Golden\GoldenBarSeriesCasesV2.cs" />
   </ItemGroup>
 
 </Project>
